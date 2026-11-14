@@ -1,0 +1,4 @@
+<Bindings>
+	<Binding name="CLICK BudgetForeverMacroWheel:LeftButton" header="BUDGETFOREVER" category="ADDONS"/>
+	<Binding name="CLICK BudgetForeverHunt:LeftButton" category="ADDONS"/>
+</Bindings>

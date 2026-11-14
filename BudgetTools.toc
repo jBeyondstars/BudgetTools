@@ -1,0 +1,34 @@
+## Interface: 16001
+## Title: BudgetTools
+## Notes: Quality-of-life tweaks for WoW Forever, each one switchable. Type /bf.
+## Notes-frFR: Améliorations de confort pour WoW Forever, activables une par une. Tapez /bf.
+## Author: BudgetTools
+## Version: 1.0.0
+## IconTexture: Interface\AddOns\BudgetTools\Media\Logo.tga
+## SavedVariables: BudgetForeverDB
+## OptionalDeps: QuestieDB, TomTom, OpenMap
+## AddonCompartmentFunc: BudgetForever_OnCompartmentClick
+## AddonCompartmentFuncOnEnter: BudgetForever_OnCompartmentEnter
+## AddonCompartmentFuncOnLeave: BudgetForever_OnCompartmentLeave
+
+Locales.lua
+Core.lua
+Util.lua
+UI\Widgets.lua
+UI\Panel.lua
+UI\MinimapButton.lua
+Features\ChatTarget.lua
+Features\PlayerNotes.lua
+UI\NotesUI.lua
+Features\LFGApply.lua
+Features\LootSwap.lua
+Features\MacroWheel.lua
+UI\MacroWheelEditor.lua
+Features\NpcFinder.lua
+Features\HuntList.lua
+UI\HuntListUI.lua
+Features\RaidAuras.lua
+Features\AuraCaster.lua
+Features\RecipeNotes.lua
+Features\BarSaver.lua
+Features\XPRate.lua
