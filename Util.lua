@@ -189,3 +189,108 @@ function Util.MenuSection(root)
     root:CreateDivider()
     root:CreateTitle(ns.L.ADDON_TITLE)
 end
+
+---------------------------------------------------------------------------
+-- Action bars: removing what addon code leaves on them
+---------------------------------------------------------------------------
+
+--[[
+Blizzard's action bars redo their layout each time the grid shows or hides:
+something goes on or off the cursor, or the spellbook / talent window opens
+or closes. When addon code caused it (PickupSpell, PickupItem, ClearCursor,
+opening the talent window), that layout runs as addon code and the notes it
+writes on the bars stay marked as the addon's:
+  bar.snappedToFrame     the frame the bar is anchored to
+  bar.showAllButtons     why the grid is shown (0 once it is hidden)
+  bar.flyoutDirection
+  EditModeManagerFrame.editModeSystemAnchorDirty
+
+On Forever the bottom bars are anchored again on every target change (the
+pet bar hides itself, which redoes the whole stack). In combat, that pass
+read MainActionBar.snappedToFrame between ClearAllPoints and SetPoint,
+became "addon code" there, and SetPoint was refused: ADDON_ACTION_BLOCKED on
+MainActionBar:SetPointBase(), blamed on this addon.
+
+A key written by addon code stays marked even once set to nil, until the
+table drops it on a rehash. PurgeKey forces that rehash (the known cure for
+the dropdown taint), so Blizzard reads a plain nil again. Only values the
+bars treat like nil are removed; snappedToFrame is written again by the next
+layout, which then runs as Blizzard code.
+]]
+
+local BARS = {
+    "MainActionBar", "SecondaryStatusTrackingBarContainer", "MainStatusTrackingBarContainer",
+    "MultiBarBottomLeft", "MultiBarBottomRight", "MultiBarRight", "MultiBarLeft",
+    "MultiBar5", "MultiBar6", "MultiBar7",
+    "StanceBar", "PetActionBar", "PossessActionBar", "MainMenuBarVehicleLeaveButton",
+    "MultiCastActionBarFrame",
+}
+
+local function Marked(t, key)
+    return issecurevariable(t, key) ~= true
+end
+
+local function PurgeKey(t, key)
+    if not Marked(t, key) then return end
+    t[key] = nil
+    -- Writing nil to keys the table doesn't have fills its free slots; the
+    -- rehash that follows drops every nil key, this one included.
+    local probe = 42
+    for _ = 1, 4096 do
+        if not Marked(t, key) then return end
+        if t[probe] == nil then t[probe] = nil end
+        probe = probe + 1
+    end
+end
+
+local function CleanBar(bar)
+    if Marked(bar, "snappedToFrame") then
+        -- What Blizzard's ClearFrameSnap does before each new anchor.
+        local target = rawget(bar, "snappedToFrame")
+        local snapped = type(target) == "table" and rawget(target, "snappedFrames")
+        if type(snapped) == "table" then snapped[bar] = nil end
+        PurgeKey(bar, "snappedToFrame")
+    end
+    if Marked(bar, "showAllButtons") then
+        -- Left alone while the grid is shown: there is no clean way to write
+        -- a number. It is purged when the grid hides.
+        local reasons = rawget(bar, "showAllButtons")
+        if reasons == nil or reasons == 0 then PurgeKey(bar, "showAllButtons") end
+    end
+    PurgeKey(bar, "flyoutDirection") -- nil: the next layout works it out again
+end
+
+local function CleanBarsNow()
+    if type(issecurevariable) ~= "function" then return end
+    for _, name in ipairs(BARS) do
+        local bar = _G[name]
+        if type(bar) == "table" then CleanBar(bar) end
+    end
+    local manager = EditModeManagerFrame
+    if type(manager) == "table" and not rawget(manager, "editModeSystemAnchorDirty") then
+        PurgeKey(manager, "editModeSystemAnchorDirty")
+    end
+end
+
+local cleanQueued = false
+
+-- Call after anything that makes the bars redo their layout from addon code.
+-- Cleans now, and again on the next frame: when an event is the cause, the
+-- bars may handle it after the caller does. Only Lua fields are written, so
+-- it is allowed in combat.
+function Util.CleanBars()
+    pcall(CleanBarsNow)
+    if cleanQueued then return end
+    cleanQueued = true
+    C_Timer.After(0, function()
+        cleanQueued = false
+        pcall(CleanBarsNow)
+    end)
+end
+
+-- The cursor being emptied hides the grid, whoever emptied it; entering
+-- combat is the last moment before a marked field costs a refused action.
+local barCleaner = CreateFrame("Frame")
+barCleaner:RegisterEvent("ACTIONBAR_HIDEGRID")
+barCleaner:RegisterEvent("PLAYER_REGEN_DISABLED")
+barCleaner:SetScript("OnEvent", function() Util.CleanBars() end)

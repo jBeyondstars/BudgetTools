@@ -1851,6 +1851,38 @@ function Finder.ShowNpc(id, arrow)
     Go(hit, arrow)
 end
 
+-- For the quest chains (Features\QuestChain.lua): who gives or takes a
+-- quest, an NPC ("npc") or a world object ("object"). Same table as
+-- Finder.Npc: name, positions, .map when a position is known, .missing
+-- when QuestieDB has no name for it.
+local objectHits = {}
+
+function Finder.Source(kind, id)
+    if kind ~= "object" then return Finder.Npc(id) end
+    if type(id) ~= "number" or not ItemsReady() then return end
+    local hit = objectHits[id]
+    if not hit then
+        hit = Info({ kind = "object", id = id })
+        objectHits[id] = hit
+    end
+    return hit
+end
+
+-- "Zone" ("Zone +2" when it is in several), or "no known position" in red.
+function Finder.SourceWhere(hit)
+    return WhereText(hit)
+end
+
+-- An NPC of the other faction only.
+function Finder.SourceHostile(hit)
+    return Hostile(hit.friendly)
+end
+
+-- On the map, as if picked in the bar (arrow: a TomTom arrow too).
+function Finder.ShowSource(hit, arrow)
+    Go(hit, arrow)
+end
+
 -- Markers where the NPC can be (the nearest spots), without opening the map.
 function Finder.MarkNpc(id)
     local hit = Finder.Npc(id)

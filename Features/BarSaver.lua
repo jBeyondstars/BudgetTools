@@ -188,6 +188,8 @@ local function Restore(saved, force)
     end)
     ClearCursor()
     restoring = false
+    -- Each pick-up and drop made the bars redo their layout as addon code.
+    Util.CleanBars()
     if not ok then geterrorhandler()(err) end
     return placed, failed
 end

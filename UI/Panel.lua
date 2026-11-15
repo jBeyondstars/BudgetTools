@@ -35,7 +35,8 @@ local function CreateNote(parent, source)
 end
 
 local function CountEnabled(categoryKey)
-    local features = ns:GetFeatures(categoryKey)
+    local category = ns:GetCategory(categoryKey)
+    local features = (category and category.overview) and ns.features or ns:GetFeatures(categoryKey)
     local enabled = 0
     for _, def in ipairs(features) do
         if ns:IsEnabled(def.key) then enabled = enabled + 1 end
@@ -99,13 +100,18 @@ local function CreatePage(category)
     page.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
 
     page.title = page:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    page.title:SetPoint("TOPLEFT", page.icon, "TOPRIGHT", 10, -1)
     UI.Localize(page.title, category.title)
 
-    page.desc = page:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    page.desc:SetPoint("TOPLEFT", page.title, "BOTTOMLEFT", 0, -4)
-    page.desc:SetTextColor(unpack(UI.MUTED))
-    UI.Localize(page.desc, category.desc)
+    if category.desc then
+        page.title:SetPoint("TOPLEFT", page.icon, "TOPRIGHT", 10, -1)
+        page.desc = page:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        page.desc:SetPoint("TOPLEFT", page.title, "BOTTOMLEFT", 0, -4)
+        page.desc:SetTextColor(unpack(UI.MUTED))
+        UI.Localize(page.desc, category.desc)
+    else
+        -- No subtitle (Overview): the title sits level with the icon.
+        page.title:SetPoint("LEFT", page.icon, "RIGHT", 10, 0)
+    end
 
     CreateDivider(page, -58)
 
@@ -143,6 +149,175 @@ local function BuildFeaturePage(page, category)
     end
     -- Extra content a category brings along (see Features\PlayerNotes.lua).
     if category.BuildExtra then category.BuildExtra(page) end
+end
+
+---------------------------------------------------------------------------
+-- Overview: every feature on one line, grouped by category. The checkbox
+-- toggles the feature, the tooltip holds the description, and a group
+-- header opens that category's page (sub-options live there).
+---------------------------------------------------------------------------
+
+local OVERVIEW_ROW = 24
+local OVERVIEW_HEADER = 26
+local OVERVIEW_GROUP_GAP = 6
+
+local function Text(source)
+    if type(source) == "function" then return source() end
+    return source and L[source] or nil
+end
+
+local function CreateOverviewHeader(list, category)
+    local header = CreateFrame("Button", nil, list)
+    header:SetHeight(OVERVIEW_HEADER)
+    header.isHeader = true
+
+    local highlight = header:CreateTexture(nil, "HIGHLIGHT")
+    highlight:SetAllPoints()
+    highlight:SetColorTexture(1, 0.82, 0, 0.08)
+
+    local rule = header:CreateTexture(nil, "ARTWORK")
+    rule:SetHeight(1)
+    rule:SetPoint("BOTTOMLEFT", 0, 0)
+    rule:SetPoint("BOTTOMRIGHT", 0, 0)
+    rule:SetTexture("Interface\\Buttons\\WHITE8x8")
+    if rule.SetGradient and CreateColor then
+        rule:SetGradient("HORIZONTAL", CreateColor(1, 0.82, 0, 0.35), CreateColor(1, 0.82, 0, 0.02))
+    else
+        rule:SetVertexColor(1, 0.82, 0, 0.2)
+    end
+
+    header.icon = header:CreateTexture(nil, "ARTWORK")
+    header.icon:SetSize(16, 16)
+    header.icon:SetPoint("LEFT", 4, 0)
+    header.icon:SetTexture(category.icon)
+    header.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+
+    header.count = header:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    header.count:SetPoint("RIGHT", -8, 0)
+
+    header.text = header:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    header.text:SetPoint("LEFT", header.icon, "RIGHT", 6, 0)
+    header.text:SetPoint("RIGHT", header.count, "LEFT", -6, 0)
+    header.text:SetJustifyH("LEFT")
+    header.text:SetWordWrap(false)
+    UI.Localize(header.text, category.title)
+
+    function header:Refresh()
+        self.count:SetText(("%d/%d"):format(CountEnabled(category.key)))
+    end
+
+    header:SetScript("OnClick", function()
+        PlaySound(SOUNDKIT.IG_MAINMENU_OPTION)
+        GameTooltip:Hide()
+        Panel:Select(category.key)
+    end)
+    header:SetScript("OnEnter", function(self)
+        UI.ShowTooltip(self, self.text:GetText(), L.OVERVIEW_OPEN_PAGE)
+    end)
+    header:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    return header
+end
+
+local function CreateOverviewRow(list, def, index)
+    local row = CreateFrame("Button", nil, list)
+    row:SetHeight(OVERVIEW_ROW)
+
+    if index % 2 == 0 then
+        local stripe = row:CreateTexture(nil, "BACKGROUND")
+        stripe:SetAllPoints()
+        stripe:SetColorTexture(1, 1, 1, 0.025)
+    end
+    local highlight = row:CreateTexture(nil, "HIGHLIGHT")
+    highlight:SetAllPoints()
+    highlight:SetColorTexture(1, 1, 1, 0.06)
+
+    row.check = UI.CreateCheckbox(row)
+    row.check:SetSize(24, 23)
+    row.check:SetPoint("LEFT", 14, 0)
+
+    row.text = row:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    row.text:SetPoint("LEFT", row.check, "RIGHT", 4, 0)
+    row.text:SetJustifyH("LEFT")
+    row.text:SetWordWrap(false)
+    UI.Localize(row.text, def.title)
+
+    if def.reload then
+        row.reload = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        row.reload:SetPoint("RIGHT", -8, 0)
+        row.reload:SetTextColor(unpack(UI.ORANGE))
+        UI.Localize(row.reload, "BADGE_RELOAD")
+        row.text:SetPoint("RIGHT", row.reload, "LEFT", -8, 0)
+    else
+        row.text:SetPoint("RIGHT", -8, 0)
+    end
+
+    function row:Refresh()
+        local on = ns:IsEnabled(def.key)
+        self.check:SetChecked(on)
+        local shade = on and 1 or 0.6
+        self.text:SetTextColor(shade, shade, shade)
+    end
+
+    local function Toggle(value)
+        ns:SetEnabled(def.key, value)
+        UI.PlayCheck(value)
+        row:Refresh()
+    end
+    row.check:SetScript("OnClick", function(self) Toggle(self:GetChecked() and true or false) end)
+    row:SetScript("OnClick", function() Toggle(not ns:IsEnabled(def.key)) end)
+
+    local function Enter()
+        GameTooltip:SetOwner(row, "ANCHOR_RIGHT", 8, 0)
+        GameTooltip:SetText(row.text:GetText(), 1, 0.82, 0, 1, true)
+        local desc, tip = Text(def.desc), Text(def.tip)
+        if desc and desc ~= "" then GameTooltip:AddLine(desc, 1, 1, 1, true) end
+        if tip and tip ~= "" then GameTooltip:AddLine(tip, UI.MUTED[1], UI.MUTED[2], UI.MUTED[3], true) end
+        if def.reload then GameTooltip:AddLine(L.RELOAD_TIP, UI.ORANGE[1], UI.ORANGE[2], UI.ORANGE[3], true) end
+        GameTooltip:Show()
+    end
+    local function Leave()
+        if row:IsMouseOver() then return end
+        GameTooltip:Hide()
+    end
+    row:SetScript("OnEnter", Enter)
+    row:SetScript("OnLeave", Leave)
+    row.check:HookScript("OnEnter", Enter)
+    row.check:HookScript("OnLeave", Leave)
+    return row
+end
+
+local function BuildOverviewPage(page)
+    local list = CreateFrame("Frame", nil, page.child)
+    list.lines = {}
+    for _, category in ipairs(ns.categories) do
+        local features = ns:GetFeatures(category.key)
+        if not category.overview and #features > 0 then
+            table.insert(list.lines, CreateOverviewHeader(list, category))
+            for index, def in ipairs(features) do
+                table.insert(list.lines, CreateOverviewRow(list, def, index))
+            end
+        end
+    end
+
+    function list:Refresh()
+        for _, line in ipairs(self.lines) do line:Refresh() end
+    end
+
+    function list:Layout(width)
+        self:SetWidth(width)
+        local y = 0
+        for index, line in ipairs(self.lines) do
+            if line.isHeader and index > 1 then y = y + OVERVIEW_GROUP_GAP end
+            line:ClearAllPoints()
+            line:SetPoint("TOPLEFT", self, "TOPLEFT", 0, -y)
+            line:SetWidth(width)
+            y = y + line:GetHeight()
+        end
+        self:SetHeight(math.max(1, y))
+    end
+
+    list:Refresh()
+    table.insert(page.items, list)
 end
 
 local function BuildSettingsPage(page)
@@ -255,9 +430,19 @@ local function BuildNavigation()
     local y = -8
     for _, category in ipairs(ns.categories) do
         local hasFeatures = #ns:GetFeatures(category.key) > 0
-        if category.settings or hasFeatures or category.BuildExtra then
+        if category.settings or category.overview or hasFeatures or category.BuildExtra then
             local button = UI.CreateCategoryButton(frame.sidebar, category)
-            if category.settings then
+            if category.overview then
+                -- First in the sidebar, set apart from the feature pages.
+                button:SetPoint("TOPLEFT", 6, y)
+                button:SetPoint("TOPRIGHT", -6, y)
+                local rule = frame.sidebar:CreateTexture(nil, "ARTWORK")
+                rule:SetHeight(1)
+                rule:SetPoint("TOPLEFT", button, "BOTTOMLEFT", 4, -4)
+                rule:SetPoint("TOPRIGHT", button, "BOTTOMRIGHT", -4, -4)
+                rule:SetColorTexture(1, 1, 1, 0.08)
+                y = y - 32 - 8
+            elseif category.settings then
                 -- Settings live at the bottom of the sidebar, apart from features.
                 button:SetPoint("BOTTOMLEFT", 6, 8)
                 button:SetPoint("BOTTOMRIGHT", -6, 8)
@@ -280,6 +465,8 @@ local function BuildNavigation()
             local page = CreatePage(category)
             if category.settings then
                 BuildSettingsPage(page)
+            elseif category.overview then
+                BuildOverviewPage(page)
             else
                 BuildFeaturePage(page, category)
             end

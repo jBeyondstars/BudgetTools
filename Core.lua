@@ -165,6 +165,7 @@ local DEFAULTS = {
     recipes = {},  -- ["Name-Realm"] = { recipe notes pinned on screen }; kept by the reset
     bars = {},     -- ["Name-Realm"] = { specs = { [spec] = action bar copy } }; kept by the reset
     xp = {},       -- XP per hour: pos, scale, chars["Name-Realm"] = session; sessions kept by the reset
+    bags = {},     -- item type names in the combined bag: font (text size), spacing (extra space between rows)
     window = {},
 }
 
@@ -325,6 +326,15 @@ end
 ---------------------------------------------------------------------------
 -- Built-in categories (features register themselves in Features\*.lua)
 ---------------------------------------------------------------------------
+
+-- First tab: every feature on one line (built in UI\Panel.lua).
+ns:RegisterCategory({
+    key = "overview",
+    order = 1,
+    title = "CAT_OVERVIEW",
+    icon = "Interface\\Icons\\INV_Misc_Book_09",
+    overview = true,
+})
 
 ns:RegisterCategory({
     key = "social",

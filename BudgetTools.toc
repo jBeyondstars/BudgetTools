@@ -22,6 +22,7 @@ Features\PlayerNotes.lua
 UI\NotesUI.lua
 Features\LFGApply.lua
 Features\LootSwap.lua
+Features\BagCategories.lua
 Features\MacroWheel.lua
 UI\MacroWheelEditor.lua
 Features\NpcFinder.lua
@@ -29,6 +30,9 @@ Features\HuntList.lua
 UI\HuntListUI.lua
 Features\RaidAuras.lua
 Features\AuraCaster.lua
+Features\InspectTalents.lua
 Features\RecipeNotes.lua
 Features\BarSaver.lua
 Features\XPRate.lua
+Features\QuestChain.lua
+UI\QuestChainUI.lua
