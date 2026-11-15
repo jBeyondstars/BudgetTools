@@ -262,9 +262,10 @@ end)
 -- Slash commands and addon compartment
 ---------------------------------------------------------------------------
 
-SLASH_BUDGETFOREVER1 = "/bf"
+SLASH_BUDGETFOREVER1 = "/bgt"
 SLASH_BUDGETFOREVER2 = "/budgettools"
-SLASH_BUDGETFOREVER3 = "/budgetforever" -- old name, still accepted
+SLASH_BUDGETFOREVER3 = "/bf"            -- old command, still accepted
+SLASH_BUDGETFOREVER4 = "/budgetforever" -- old name, still accepted
 SlashCmdList.BUDGETFOREVER = function(message)
     local command, rest = strtrim(message or ""):match("^(%S*)%s*(.-)$")
     command = strlower(command or "")

@@ -39,7 +39,7 @@ local KEY = "hideRaidAuras"
 
 -- Aura names hidden from the group frames. Forever's client is English. A
 -- spell ID would also work in other languages, but it isn't known yet:
--- /bf auras prints it.
+-- /bgt auras prints it.
 local HIDDEN = {
     ["Boosted Rest"] = true,
 }
@@ -293,7 +293,7 @@ local function Disable()
 end
 
 ---------------------------------------------------------------------------
--- /bf auras: what is found and hidden on each frame
+-- /bgt auras: what is found and hidden on each frame
 ---------------------------------------------------------------------------
 
 -- Auras whose name looks close, in case the game spells it differently.

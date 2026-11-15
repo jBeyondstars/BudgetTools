@@ -1,7 +1,7 @@
 ## Interface: 16001
 ## Title: BudgetTools
-## Notes: Quality-of-life tweaks for WoW Forever, each one switchable. Type /bf.
-## Notes-frFR: Améliorations de confort pour WoW Forever, activables une par une. Tapez /bf.
+## Notes: Quality-of-life tweaks for WoW Forever, each one switchable. Type /bgt.
+## Notes-frFR: Améliorations de confort pour WoW Forever, activables une par une. Tapez /bgt.
 ## Author: BudgetTools
 ## Version: 1.0.0
 ## IconTexture: Interface\AddOns\BudgetTools\Media\Logo.tga

@@ -4,7 +4,7 @@ BudgetTools adds small tools to WoW Forever that the default interface lacks. Yo
 
 BudgetTools keeps growing: the tools get better with each update, and new ones arrive regularly.
 
-Type `/bf` or click the minimap button to open it.
+Type `/bgt` or click the minimap button to open it.
 
 ![The overview tab: every tool on one line](https://raw.githubusercontent.com/jBeyondstars/BudgetTools/main/docs/screenshots/overview.png)
 
@@ -80,17 +80,17 @@ The finder reads its data from the **QuestieDB** addon, so install that too. Que
 
 | Command                    | What it does                                             |
 | -------------------------- | -------------------------------------------------------- |
-| <code>/bf</code>           | Open or close the options                                |
-| <code>/bf note Name</code> | Write a note about a player                              |
-| <code>/bf lfg</code>       | Edit your LFG application message                        |
-| <code>/bf wheel</code>     | Set up the macro and emote wheel                         |
+| <code>/bgt</code>           | Open or close the options                                |
+| <code>/bgt note Name</code> | Write a note about a player                              |
+| <code>/bgt lfg</code>       | Edit your LFG application message                        |
+| <code>/bgt wheel</code>     | Set up the macro and emote wheel                         |
 | <code>/npc Name</code>     | Find an NPC on the world map                             |
 | <code>/item Name</code>    | Show where an item comes from                            |
 | <code>/hunt Name</code>    | Add an NPC to your hunting list                          |
-| <code>/bf bars</code>      | Check, save or restore your action bar copy              |
-| <code>/bf xp</code>        | Print your XP per hour in chat                           |
-| <code>/bf auras</code>     | List the auras hidden on raid frames                     |
-| <code>/bf reset</code>     | Restore the default settings (your notes and lists stay) |
+| <code>/bgt bars</code>      | Check, save or restore your action bar copy              |
+| <code>/bgt xp</code>        | Print your XP per hour in chat                           |
+| <code>/bgt auras</code>     | List the auras hidden on raid frames                     |
+| <code>/bgt reset</code>     | Restore the default settings (your notes and lists stay) |
 
 ## Works with
 

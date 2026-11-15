@@ -25,7 +25,7 @@ seen a moment ago, then by QuestieDB positions. That costs nothing, since
 /targetexact only reaches units around you, and the choice is made again
 as you move.
 
-Storage, BudgetForeverDB.hunt (kept by /bf reset):
+Storage, BudgetForeverDB.hunt (kept by /bgt reset):
   list  = { { name, id?, on, seen? }, ... }  most important first, account-wide
   chars = { ["Name-Realm"] = { spell = { id, name, rank? }, lowest, pet } }
   button = { point, relativePoint, x, y }     the on-screen button, once dragged
@@ -894,7 +894,7 @@ local function AddMenuEntry(_, root, context)
 end
 
 ---------------------------------------------------------------------------
--- /hunt Name, /chasse Nom (also /bf hunt)
+-- /hunt Name, /chasse Nom (also /bgt hunt)
 ---------------------------------------------------------------------------
 
 function Hunt.Command(message)

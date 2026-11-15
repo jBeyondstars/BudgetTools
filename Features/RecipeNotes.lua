@@ -24,7 +24,7 @@ What a note keeps:
   The reagents are read once, when the recipe is pinned, from
   C_TradeSkillUI.GetRecipeSchematic (basic reagent slots, as listed under the
   recipe in the window). They are saved per character in
-  BudgetForeverDB.recipes, kept by /bf reset, so notes come back after a
+  BudgetForeverDB.recipes, kept by /bgt reset, so notes come back after a
   reload or a relog and need no profession window. The counts in your bags
   and bank are read live. A ×N multiplier (− and + buttons, mouse wheel,
   Shift for 10 at a time) scales them to the number of crafts you want.

@@ -17,7 +17,7 @@ How:
   - After a login, a reload or a spec swap, the bars are compared with the
     copy BEFORE saving resumes. A slot that was filled in the copy and is
     now empty counts as lost and is filled again. A slot that holds
-    something else is left alone (only /bf bars restore overwrites it).
+    something else is left alone (only /bgt bars restore overwrites it).
   - Saving is on hold while the bars of the current spec have not been
     checked, so a wiped bar can never replace a good copy.
 

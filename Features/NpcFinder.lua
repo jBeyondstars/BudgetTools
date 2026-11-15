@@ -1589,7 +1589,7 @@ function Finder.ResetBar()
 end
 
 ---------------------------------------------------------------------------
--- /npc Name, /npc clear (also /bf npc)
+-- /npc Name, /npc clear (also /bgt npc)
 ---------------------------------------------------------------------------
 
 function Finder.Command(message)
@@ -1677,7 +1677,7 @@ function Finder.ShowItem(id)
     if not ShowBest(BuildItemView(item)) then ns:Print(L.NPC_NO_POSITION_LONG:format(item.name)) end
 end
 
--- /item Name, an item link or an item ID (also /objet and /bf item).
+-- /item Name, an item link or an item ID (also /objet and /bgt item).
 function Finder.ItemCommand(message)
     if not ns:IsEnabled(KEY) then
         ns:Print(L.NPC_DISABLED)

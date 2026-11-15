@@ -6,7 +6,7 @@ BudgetTools adds small tools to WoW Forever that the default interface lacks. Yo
 
 BudgetTools keeps growing: the tools get better with each update, and new ones arrive regularly.
 
-Type `/bf` or click the minimap button to open it.
+Type `/bgt` or click the minimap button to open it.
 
 ![The overview tab: every tool on one line](docs/screenshots/overview.png)
 
@@ -82,17 +82,17 @@ The finder reads its data from the **QuestieDB** addon, so install that too. Que
 
 | Command | What it does |
 |---|---|
-| `/bf` | Open or close the options |
-| `/bf note Name` | Write a note about a player |
-| `/bf lfg` | Edit your LFG application message |
-| `/bf wheel` | Set up the macro and emote wheel |
+| `/bgt` | Open or close the options |
+| `/bgt note Name` | Write a note about a player |
+| `/bgt lfg` | Edit your LFG application message |
+| `/bgt wheel` | Set up the macro and emote wheel |
 | `/npc Name` | Find an NPC on the world map |
 | `/item Name` | Show where an item comes from |
 | `/hunt Name` | Add an NPC to your hunting list |
-| `/bf bars` | Check, save or restore your action bar copy |
-| `/bf xp` | Print your XP per hour in chat |
-| `/bf auras` | List the auras hidden on raid frames |
-| `/bf reset` | Restore the default settings (your notes and lists stay) |
+| `/bgt bars` | Check, save or restore your action bar copy |
+| `/bgt xp` | Print your XP per hour in chat |
+| `/bgt auras` | List the auras hidden on raid frames |
+| `/bgt reset` | Restore the default settings (your notes and lists stay) |
 
 ## Works with
 

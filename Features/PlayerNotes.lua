@@ -368,7 +368,7 @@ end
 --     PARTY = true, ...              chat types (CHAT_TYPES keys)
 --     ["#trade"] = "Trade", ...      channels: "#" .. lower-case name -> name
 -- }
--- It sits with the other options, so /bf reset clears it.
+-- It sits with the other options, so /bgt reset clears it.
 local skipValidated = false
 
 local function Skipped()

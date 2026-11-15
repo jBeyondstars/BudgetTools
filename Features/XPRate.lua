@@ -7,8 +7,8 @@ Experience per hour for the current session, in a small movable box.
 
 Session:
   - Starts at login, survives a /reload, and starts over when you clear it
-    (right-click menu, the button in /bf, or /bf xp clear).
-  - Turning the feature on from /bf starts a new session when the stored one
+    (right-click menu, the button in /bgt, or /bgt xp clear).
+  - Turning the feature on from /bgt starts a new session when the stored one
     was left more than a few minutes ago (XP was not followed meanwhile).
   - Stored per character in BudgetForeverDB.xp.chars["Name-Realm"]; the
     box position, size and the display settings are shared.
@@ -18,7 +18,7 @@ Counting:
   the bar went down or the level went up, a level was gained: what was left
   of the old bar plus what is on the new one.
 
-Display (all from the right-click menu, and in /bf):
+Display (all from the right-click menu, and in /bgt):
   - which lines are shown, the size, the background, locking the position.
 ]]
 
