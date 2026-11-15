@@ -1,4 +1,4 @@
-![BudgetTools](docs/banner.png)
+<img src="docs/banner.png" alt="BudgetTools" width="400">
 
 # BudgetTools
 

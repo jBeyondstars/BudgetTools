@@ -1,4 +1,4 @@
-<p style="text-align:center">![BudgetTools](https://raw.githubusercontent.com/jBeyondstars/BudgetTools/main/docs/banner.png)</p>
+<p style="text-align:center"><img src="https://raw.githubusercontent.com/jBeyondstars/BudgetTools/main/docs/banner.png" alt="BudgetTools" width="400"></p>
 
 BudgetTools adds small tools to WoW Forever that the default interface lacks. You switch each one on or off in a single window, so you run the ones you use and skip the rest.
 
