@@ -249,8 +249,10 @@ end
 
 local function PaintContainer(frame)
     if type(frame.EnumerateValidItems) ~= "function" then return end
+    -- The window knows its size before its buttons exist: until it is first
+    -- opened, the enumerator counts slots that have no button yet.
     for _, button in frame:EnumerateValidItems() do
-        PaintSlot(button, button:GetBagID(), button:GetID())
+        if button then PaintSlot(button, button:GetBagID(), button:GetID()) end
     end
 end
 

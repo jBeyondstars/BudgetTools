@@ -514,6 +514,8 @@ strings.enUS = {
     CRAFTSCOUT_TIP = "A separate module, in its own folder (BudgetTools_CraftScout): it is only loaded while this is ticked and costs nothing otherwise. Turning it off takes effect after a reload. Its own commands: /csc help.",
     CRAFTSCOUT_OPEN = "Open CraftScout",
     CRAFTSCOUT_OPEN_TIP = "Opens or closes the CraftScout window, like /csc.",
+    CRAFTSCOUT_MINIMAP = "Minimap button",
+    CRAFTSCOUT_MINIMAP_TIP = "Adds a CraftScout button on the edge of the minimap: click it to open the window, drag it to move it.",
     CRAFTSCOUT_OFF = "CraftScout is off: turn it on in /bgt, Professions.",
     CRAFTSCOUT_LOAD_FAILED = "CraftScout could not be loaded (%s).",
 
@@ -1238,6 +1240,8 @@ strings.frFR = {
     CRAFTSCOUT_TIP = "Un module à part, dans son propre dossier (BudgetTools_CraftScout) : il n'est chargé que si cette case est cochée et ne coûte rien sinon. Le désactiver prend effet après un rechargement. Ses commandes : /csc help.",
     CRAFTSCOUT_OPEN = "Ouvrir CraftScout",
     CRAFTSCOUT_OPEN_TIP = "Ouvre ou ferme la fenêtre de CraftScout, comme /csc.",
+    CRAFTSCOUT_MINIMAP = "Bouton sur la minimap",
+    CRAFTSCOUT_MINIMAP_TIP = "Ajoute un bouton CraftScout sur le bord de la minimap : clique dessus pour ouvrir la fenêtre, fais-le glisser pour le déplacer.",
     CRAFTSCOUT_OFF = "CraftScout est désactivé : active-le dans /bgt, Métiers.",
     CRAFTSCOUT_LOAD_FAILED = "CraftScout n'a pas pu être chargé (%s).",
 

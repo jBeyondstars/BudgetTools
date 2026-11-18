@@ -62,16 +62,35 @@ local function TryLoad()
     return loaded and true or false, reason
 end
 
+-- The module's minimap button: its setting lives in the module (CraftScoutDB),
+-- so this card and the module's Display menu always show the same thing.
+local function MinimapButton()
+    local module = _G.CraftScout
+    return type(module) == "table" and module.MinimapButton or nil
+end
+
+-- Ticked in the module's own menu: this card follows while /bgt is open.
+local function WatchMinimapButton()
+    local button = MinimapButton()
+    if not button then return end
+    button.onChange = function(value) ns:Fire("OPTION_CHANGED", KEY, "minimapButton", value) end
+end
+
 -- Loads the module; true when it is there. Unticked in the game's AddOns list,
 -- it is ticked again for this character: ticking the card means wanting it.
 function CS.Load()
-    if CS.IsLoaded() then return true end
+    if CS.IsLoaded() then
+        WatchMinimapButton()
+        return true
+    end
     local loaded, reason = TryLoad()
     if not loaded and reason == "DISABLED" and EnableAddOn then
         pcall(EnableAddOn, MODULE, UnitName("player"))
         loaded, reason = TryLoad()
     end
-    if not loaded then
+    if loaded then
+        WatchMinimapButton()
+    else
         local why = reason and (_G["ADDON_" .. reason] or reason) or UNKNOWN
         ns:Print(L.CRAFTSCOUT_LOAD_FAILED:format(tostring(why)))
     end
@@ -140,6 +159,19 @@ ns:RegisterFeature({
     IsActive = CS.IsLoaded,
     options = {
         { key = "open", title = "CRAFTSCOUT_OPEN", tip = "CRAFTSCOUT_OPEN_TIP", action = function() CS.Open() end },
+        {
+            key = "minimapButton",
+            title = "CRAFTSCOUT_MINIMAP",
+            tip = "CRAFTSCOUT_MINIMAP_TIP",
+            get = function()
+                local button = MinimapButton()
+                return button ~= nil and button.IsEnabled()
+            end,
+            set = function(value)
+                local button = MinimapButton()
+                if button then button.SetEnabled(value) end
+            end,
+        },
     },
     OnEnable = function() CS.Load() end,
     OnDisable = CloseWindows,

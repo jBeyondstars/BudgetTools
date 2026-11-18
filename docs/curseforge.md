@@ -62,7 +62,15 @@ The finder reads its data from the **QuestieDB** addon, so install that too. Que
 
 **Trinket bar.** A small bar shows your two equipped trinkets and their cooldowns. Click one to use it, or give each a key. Hover the bar to see the trinkets in your bags: left-click equips one in the top slot, right-click in the bottom slot. The game blocks trinket swaps in combat, so the one you pick waits and goes on when the fight ends.
 
+**Buff sequences (priest for now).** Create up to 8 sequences, each with its buffs, their order and rank, and its own key. Press the key again and again to cast each missing buff on you, your group and pets. Drag a sequence onto an action bar to get a button for it. A buff already there is never cast again, whatever its rank, and spells you haven't learned are skipped. Out of combat only. Set them up with `/bgt buffs`.
+
 ## Professions and leveling
+
+**CraftScout: margin and profit per craft.** An optional module, in the same download. Scan the Auction House and CraftScout shows what each recipe you can craft earns: its sale price after the auction cut, minus the cost of its reagents. Compare prices from the last scan or a 72-hour average, and see what to make with the reagents in your bags. It stays off and is not even loaded until you tick it in `/bgt`, Professions. Then type `/csc`, or tick its minimap button on the same card.
+
+![CraftScout: the recipes you can craft, ranked by margin, with the detail of the selected one](https://raw.githubusercontent.com/jBeyondstars/BudgetTools/main/docs/screenshots/craftscout-best-crafts.png)
+
+![Use my reagents: what to craft with the reagents you own](https://raw.githubusercontent.com/jBeyondstars/BudgetTools/main/docs/screenshots/craftscout-reagents.png) ![Picking reagents from your bags and bank](https://raw.githubusercontent.com/jBeyondstars/BudgetTools/main/docs/screenshots/craftscout-my-bags.png)
 
 **Pinned recipes.** Drag a recipe name out of the professions window. Its reagents stay on screen in a small note that counts them in your bags: green when you have enough, gold when your bank covers the rest, red when some are missing. Set how many crafts you want and the counts follow.
 
@@ -104,6 +112,8 @@ The finder reads its data from the **QuestieDB** addon, so install that too. Que
 | <code>/bgt bars</code>      | Check, save or restore your action bar copy              |
 | <code>/bgt xp</code>        | Print your XP per hour in chat                           |
 | <code>/bgt trinket</code>   | List your equipped trinkets (<code>reset</code> puts the bar back in place) |
+| <code>/bgt buffs</code>   | Set up your buff sequences                               |
+| <code>/csc</code>         | Open CraftScout, once its module is on                   |
 | <code>/bgt auras</code>     | List the auras hidden on raid frames                     |
 | <code>/bgt reset</code>     | Restore the default settings (your notes and lists stay) |
 
@@ -116,6 +126,10 @@ The finder reads its data from the **QuestieDB** addon, so install that too. Que
 ## Languages
 
 English and French. BudgetTools follows your game language, and you can change it in its settings.
+
+## Credits
+
+CraftScout: Data from ForeverDB.net (https://foreverdb.net). Recipe details also come from WhatsTraining (MIT License). CraftScout is licensed under GPL-3.0.
 
 ## Feedback
 

@@ -55,6 +55,7 @@ end
 --             IsActive() is true (a load-on-demand module cannot be unloaded)
 --   isNew     shows a NEW badge
 --   options   sub-options: { { key, title, tip, default }, ... }
+--             get(), set(value): the option is saved elsewhere (by a module)
 --   OnEnable(def), OnDisable(def)
 ---------------------------------------------------------------------------
 
@@ -197,7 +198,7 @@ local function InitDB()
         if def.options then
             db.options[def.key] = db.options[def.key] or {}
             for _, option in ipairs(def.options) do
-                if not option.action and db.options[def.key][option.key] == nil then
+                if not option.action and not option.get and db.options[def.key][option.key] == nil then
                     db.options[def.key][option.key] = option.default == true
                 end
             end

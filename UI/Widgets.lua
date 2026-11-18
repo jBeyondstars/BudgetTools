@@ -286,6 +286,7 @@ local OPTION_INDENT = 22
 -- opts: title, desc, tip (locale keys or getters), isNew, reload, get(), set(value)
 --       options = { { key, title, tip }, ... }, getOption(key), setOption(key, value)
 --       an option with `action = function` is a button instead of a checkbox
+--       an option with `get` and `set` reads and saves its value through them
 --       an option with `requires = "otherKey"` is indented under that option
 --       and greyed out while it is off
 function UI.CreateToggleCard(parent, opts)
@@ -319,8 +320,8 @@ function UI.CreateToggleCard(parent, opts)
             row = CreateActionRow(card, option)
         else
             row = CreateOptionRow(card, option,
-                function() return opts.getOption(option.key) end,
-                function(value) opts.setOption(option.key, value) end)
+                option.get or function() return opts.getOption(option.key) end,
+                option.set or function(value) opts.setOption(option.key, value) end)
         end
         row.option = option
         table.insert(card.options, row)
