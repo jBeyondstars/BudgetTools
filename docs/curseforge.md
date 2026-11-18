@@ -48,6 +48,8 @@ The finder reads its data from the **QuestieDB** addon, so install that too. Que
 
 **Your own sort for "Clean up bags".** Right-click the clean-up button of your bags to choose how it sorts: the game's default, pickup order (the items you got first come first, the newest last) or most used items first. Pickups and uses are counted per character. Nothing is grouped by type, not even grey items, and the type names are hidden while these sorts are on. Bags set to "Ignore this bag" stay as they are. Tick "Keep equipment sets together" and every sort, the game's default included, puts the items of each equipment set side by side at the start of your bags.
 
+![The sort choice and the option that keeps equipment sets together](https://raw.githubusercontent.com/jBeyondstars/BudgetTools/main/docs/screenshots/set-colors-option.png)
+
 **Equipment set colors.** Give an equipment set a color from its gear button in the Equipment Manager. Every item of that set gets a border of that color in your bags and bank, so you see at a glance what belongs to which set. An item in two colored sets shows both colors. Each character has its own colors.
 
 ![Choosing a set's color in the Equipment Manager](https://raw.githubusercontent.com/jBeyondstars/BudgetTools/main/docs/screenshots/set-colors-menu.png) ![Set items with their colored border, kept together in the bags](https://raw.githubusercontent.com/jBeyondstars/BudgetTools/main/docs/screenshots/set-colors-bags.png)
@@ -79,6 +81,8 @@ The finder reads its data from the **QuestieDB** addon, so install that too. Que
 **Who cast that buff.** Buff and debuff tooltips gain a "Cast by" line with the caster's name in class color. It works on your buff bar and the party frames. Forever locks the tooltips of the target frame and the raid-style frames, so those stay as they are.
 
 ![Cast by line in a buff tooltip](https://raw.githubusercontent.com/jBeyondstars/BudgetTools/main/docs/screenshots/aura-caster.png)
+
+**Who is it targeting.** Unit tooltips gain a "Target:" line with the name of what the unit is targeting, in class color, or "Target: Me" (red for a hostile mob or a player of the other faction) when it is you. The line follows target changes while the tooltip stays open.
 
 **Hide Boosted Rest on raid frames.** BudgetTools removes the Boosted Rest icon from party and raid frames, so the debuffs you need to see keep their place. The bonus itself stays on.
 

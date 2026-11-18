@@ -1,15 +1,21 @@
 # Changelog
 
-## Unreleased
+## 1.1.0
 
+### New tools
+- Equipment set colors: give a set a color from its gear button in the Equipment Manager, and all its items get a border of that color in your bags and bank. An item in two colored sets shows both colors.
 - Buff sequences (priest for now): create up to 8 sequences, each with its buffs, their order and rank, and its own key; press it again and again to cast each missing buff on you, your group and pets. Drag a sequence onto an action bar to get a button for it, and pick its icon from the game's icon list (right-click the icon). A buff already there is never cast again, whatever its rank; spells you haven't learned are skipped. Out of combat only. `/bgt buffs`.
 - New CraftScout module, in its own folder in the same download: the margin and profit of each recipe you can craft, from your Auction House scans. It is off by default and not even loaded until you tick it in `/bgt`, Professions; then type `/csc`. Recipe data from ForeverDB.net (https://foreverdb.net).
-- Choose how "Clean up bags" sorts: right-click the button to pick the game's default, pickup order (oldest items first) or most used items first.
-- Equipment set colors: give a set a color from its gear button in the Equipment Manager, and all its items get a border of that color in your bags and bank.
-- New "Clean up bags" option: keep the items of each equipment set together at the start of your bags.
-- Target in unit tooltips: a "Target:" line shows what a mob, player or NPC is targeting, and "Target: Me" (in red for a hostile mob or a player of the other faction) when it is you. It follows target changes while the tooltip stays open.
-- Search box in the options window: type a few letters to find a tool by its name, its description or one of its settings.
+- Choose how "Clean up bags" sorts: right-click the button to pick the game's default, pickup order (oldest items first) or most used items first. A "Keep equipment sets together" option puts the items of each set side by side at the start of your bags, with any of these sorts.
 - Trinket bar: your two equipped trinkets on screen with their cooldowns, and the trinkets of your bags one hover away. Left-click equips in the top slot, right-click in the bottom slot; a swap asked in combat waits for the end of the fight. A key can be bound to each trinket.
+- Target in unit tooltips: a "Target:" line shows what a mob, player or NPC is targeting, and "Target: Me" (in red for a hostile mob or a player of the other faction) when it is you. It follows target changes while the tooltip stays open.
+
+### Improvements
+- Search box in the options window: type a few letters to find a tool by its name, its description or one of its settings.
+- Room for loot: when nothing in your bags can make room, the window can open anyway and say why. Turn this off to get a single chat line instead.
+
+### Fixes
+- Action bar backup: after putting actions back on your bars, BudgetTools offers to reload the interface, so the game doesn't block those buttons in combat.
 
 ## 1.0.0
 
