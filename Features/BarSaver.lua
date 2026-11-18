@@ -166,6 +166,32 @@ local function Place(slot, entry)
     return (ReadSlot(slot)) ~= nil
 end
 
+--[[
+PlaceAction fires ACTIONBAR_SLOT_CHANGED while our code is still running, so
+Blizzard's button updates for that slot run as addon code and the fields they
+write on the button (button.action first) stay marked as ours. Every later
+change of that slot reads them, so in combat the button's SetShown or
+SetAttribute is refused: ADDON_ACTION_BLOCKED on
+MultiBarBottomRightButton1:SetShown(), blamed on this addon. button.action
+can't be purged like the bar fields (the button needs it), and only a reload
+gives the buttons clean fields. The server keeps the restored actions.
+]]
+StaticPopupDialogs["BUDGETFOREVER_BARS_RELOAD"] = {
+    text = "",
+    button1 = RELOADUI or "Reload",
+    button2 = CANCEL,
+    OnAccept = function() ReloadUI() end,
+    timeout = 0,
+    whileDead = true,
+    hideOnEscape = true,
+    preferredIndex = 3,
+}
+
+local function OfferReload()
+    StaticPopupDialogs["BUDGETFOREVER_BARS_RELOAD"].text = L.BARS_RELOAD
+    StaticPopup_Show("BUDGETFOREVER_BARS_RELOAD")
+end
+
 -- Fills the slots the copy has and the bars lost. With `force`, also
 -- replaces slots that hold something else. Returns placed, failed.
 local function Restore(saved, force)
@@ -190,6 +216,7 @@ local function Restore(saved, force)
     restoring = false
     -- Each pick-up and drop made the bars redo their layout as addon code.
     Util.CleanBars()
+    if placed > 0 then OfferReload() end
     if not ok then geterrorhandler()(err) end
     return placed, failed
 end

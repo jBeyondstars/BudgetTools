@@ -42,15 +42,25 @@ The finder reads its data from the **QuestieDB** addon, so install that too. Que
 
 **Room for loot when your bags are full.** Your bags are full and something good drops. BudgetTools offers to destroy a cheaper item so you can take the loot, grey junk first. You confirm with a click before anything goes. It leaves out blue and better items, quest items, keys, bags, lockboxes and profession tools. With Auctionator installed, it compares auction prices.
 
+![Room for loot: a cheaper item proposed for destruction](docs/screenshots/loot-swap.png)
+
 **Item type names in the combined bag.** A small name (Consumable, Weapon, Quest...) sits above the first item of each group in the combined backpack, so you see where "Clean up bags" put each kind of item. Grey items share one name, Junk. You choose the text size and how much room the rows leave for the names.
 
 ![Type names in the combined backpack](docs/screenshots/bag-types.png)
+
+**Your own sort for "Clean up bags".** Right-click the clean-up button of your bags to choose how it sorts: the game's default, pickup order (the items you got first come first, the newest last) or most used items first. Pickups and uses are counted per character. Nothing is grouped by type, not even grey items, and the type names are hidden while these sorts are on. Bags set to "Ignore this bag" stay as they are. Tick "Keep equipment sets together" and every sort, the game's default included, puts the items of each equipment set side by side at the start of your bags.
+
+**Equipment set colors.** Give an equipment set a color from its gear button in the Equipment Manager. Every item of that set gets a border of that color in your bags and bank, so you see at a glance what belongs to which set. An item in two colored sets shows both colors. Each character has its own colors.
+
+![Choosing a set's color in the Equipment Manager](docs/screenshots/set-colors-menu.png) ![Set items with their colored border, kept together in the bags](docs/screenshots/set-colors-bags.png)
 
 **Macro and emote wheel.** Hold a key and a wheel of up to 8 macros and emotes opens around your cursor. Move toward one and release. It works in combat.
 
 ![The wheel open around the cursor](docs/screenshots/wheel.png) ![Setting up the wheel](docs/screenshots/wheel-editor.png)
 
 **Action bar backup.** Dual spec on WoW Forever can empty your action bars. BudgetTools keeps a copy of your bars for each spec and puts back the actions the game loses after a logout, a reload or a spec swap. It saves spells with their exact rank and waits for the end of a fight before it restores anything.
+
+**Trinket bar.** A small bar shows your two equipped trinkets and their cooldowns. Click one to use it, or give each a key. Hover the bar to see the trinkets in your bags: left-click equips one in the top slot, right-click in the bottom slot. The game blocks trinket swaps in combat, so the one you pick waits and goes on when the fight ends.
 
 ## Professions and leveling
 
@@ -72,6 +82,8 @@ The finder reads its data from the **QuestieDB** addon, so install that too. Que
 
 ![Cast by line in a buff tooltip](docs/screenshots/aura-caster.png)
 
+**Who is it targeting.** Unit tooltips gain a "Target:" line with the name of what the unit is targeting, in class color, or "Target: Me" (red for a hostile mob or a player of the other faction) when it is you. The line follows target changes while the tooltip stays open.
+
 **Hide Boosted Rest on raid frames.** BudgetTools removes the Boosted Rest icon from party and raid frames, so the debuffs you need to see keep their place. The bonus itself stays on.
 
 **Talents tab in the inspect window.** The inspect window gains a Talents tab under Character, PvP and Guild. One click opens the game's talent window on the player you are inspecting, without going back to their right-click menu. A button on the talent window brings you back to the inspect window.
@@ -91,6 +103,7 @@ The finder reads its data from the **QuestieDB** addon, so install that too. Que
 | `/hunt Name` | Add an NPC to your hunting list |
 | `/bgt bars` | Check, save or restore your action bar copy |
 | `/bgt xp` | Print your XP per hour in chat |
+| `/bgt trinket` | List your equipped trinkets (`reset` puts the bar back in place) |
 | `/bgt auras` | List the auras hidden on raid frames |
 | `/bgt reset` | Restore the default settings (your notes and lists stay) |
 

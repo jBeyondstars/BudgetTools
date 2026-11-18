@@ -14,6 +14,8 @@ local ITEM_SPACING = 8
 local frame
 local pages, buttons = {}, {}
 local currentKey
+local overviewKey, overviewList -- the page the search box filters
+local searchQuery = ""
 
 ---------------------------------------------------------------------------
 -- Helpers
@@ -166,6 +168,66 @@ local function Text(source)
     return source and L[source] or nil
 end
 
+---------------------------------------------------------------------------
+-- Search: the box in the window header filters the overview list. Texts
+-- are compared in lower case, without accents or colour codes, so "metier"
+-- finds "Métiers".
+---------------------------------------------------------------------------
+
+local ACCENTS = {
+    ["à"] = "a", ["á"] = "a", ["â"] = "a", ["ã"] = "a", ["ä"] = "a", ["å"] = "a",
+    ["À"] = "a", ["Á"] = "a", ["Â"] = "a", ["Ã"] = "a", ["Ä"] = "a", ["Å"] = "a",
+    ["ç"] = "c", ["Ç"] = "c", ["ñ"] = "n", ["Ñ"] = "n",
+    ["è"] = "e", ["é"] = "e", ["ê"] = "e", ["ë"] = "e",
+    ["È"] = "e", ["É"] = "e", ["Ê"] = "e", ["Ë"] = "e",
+    ["ì"] = "i", ["í"] = "i", ["î"] = "i", ["ï"] = "i",
+    ["Ì"] = "i", ["Í"] = "i", ["Î"] = "i", ["Ï"] = "i",
+    ["ò"] = "o", ["ó"] = "o", ["ô"] = "o", ["õ"] = "o", ["ö"] = "o",
+    ["Ò"] = "o", ["Ó"] = "o", ["Ô"] = "o", ["Õ"] = "o", ["Ö"] = "o",
+    ["ù"] = "u", ["ú"] = "u", ["û"] = "u", ["ü"] = "u",
+    ["Ù"] = "u", ["Ú"] = "u", ["Û"] = "u", ["Ü"] = "u",
+    ["ÿ"] = "y", ["œ"] = "oe", ["Œ"] = "oe", ["æ"] = "ae", ["Æ"] = "ae",
+}
+
+local function Fold(text)
+    if type(text) ~= "string" then return "" end
+    text = text:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
+    text = text:gsub("[\195-\197][\128-\191]", ACCENTS)
+    -- ASCII letters only: the other bytes belong to multi-byte characters.
+    return (text:gsub("[A-Z]", string.lower))
+end
+Panel.Fold = Fold
+
+-- Everything a feature says about itself: its category, its title, its
+-- description, its tooltip and its sub-options.
+local function SearchText(def, category)
+    local parts = {}
+    local function add(source)
+        local text = Text(source)
+        if type(text) == "string" and text ~= "" then parts[#parts + 1] = Fold(text) end
+    end
+    add(category and category.title)
+    add(def.title)
+    add(def.desc)
+    add(def.tip)
+    for _, option in ipairs(def.options or {}) do
+        add(option.title)
+        add(option.tip)
+    end
+    return table.concat(parts, "\n")
+end
+
+-- True when every word of the query is somewhere in the feature's texts.
+local function Matches(def, category, query)
+    local text
+    for word in Fold(query):gmatch("%S+") do
+        text = text or SearchText(def, category)
+        if not text:find(word, 1, true) then return false end
+    end
+    return true
+end
+Panel.Matches = Matches
+
 local function CreateOverviewHeader(list, category)
     local header = CreateFrame("Button", nil, list)
     header:SetHeight(OVERVIEW_HEADER)
@@ -218,15 +280,16 @@ local function CreateOverviewHeader(list, category)
     return header
 end
 
-local function CreateOverviewRow(list, def, index)
+local function CreateOverviewRow(list, def, category)
     local row = CreateFrame("Button", nil, list)
     row:SetHeight(OVERVIEW_ROW)
+    row.def, row.category = def, category
 
-    if index % 2 == 0 then
-        local stripe = row:CreateTexture(nil, "BACKGROUND")
-        stripe:SetAllPoints()
-        stripe:SetColorTexture(1, 1, 1, 0.025)
-    end
+    -- Shown on every other visible row (see list:Layout).
+    row.stripe = row:CreateTexture(nil, "BACKGROUND")
+    row.stripe:SetAllPoints()
+    row.stripe:SetColorTexture(1, 1, 1, 0.025)
+
     local highlight = row:CreateTexture(nil, "HIGHLIGHT")
     highlight:SetAllPoints()
     highlight:SetColorTexture(1, 1, 1, 0.06)
@@ -293,31 +356,87 @@ local function BuildOverviewPage(page)
         local features = ns:GetFeatures(category.key)
         if not category.overview and #features > 0 then
             table.insert(list.lines, CreateOverviewHeader(list, category))
-            for index, def in ipairs(features) do
-                table.insert(list.lines, CreateOverviewRow(list, def, index))
+            for _, def in ipairs(features) do
+                table.insert(list.lines, CreateOverviewRow(list, def, category))
             end
         end
     end
+
+    list.empty = list:CreateFontString(nil, "OVERLAY", "GameFontDisable")
+    list.empty:SetPoint("TOP", 0, -24)
+    list.empty:SetJustifyH("CENTER")
+    list.empty:SetWordWrap(true)
+    list.empty:Hide()
 
     function list:Refresh()
         for _, line in ipairs(self.lines) do line:Refresh() end
     end
 
+    -- Lines are matched against the search on every layout, so a change of
+    -- language or of a live label is picked up too. A header stays only
+    -- when one of its features does.
     function list:Layout(width)
         self:SetWidth(width)
-        local y = 0
-        for index, line in ipairs(self.lines) do
-            if line.isHeader and index > 1 then y = y + OVERVIEW_GROUP_GAP end
-            line:ClearAllPoints()
-            line:SetPoint("TOPLEFT", self, "TOPLEFT", 0, -y)
-            line:SetWidth(width)
-            y = y + line:GetHeight()
+        local query = searchQuery
+        local shown, header = {}, nil
+        for _, line in ipairs(self.lines) do
+            if line.isHeader then
+                header = line
+            elseif Matches(line.def, line.category, query) then
+                if header then
+                    shown[header] = true
+                    header = nil
+                end
+                shown[line] = true
+            end
+        end
+
+        local y, count, stripe = 0, 0, 0
+        for _, line in ipairs(self.lines) do
+            line:SetShown(shown[line] == true)
+            if shown[line] then
+                if line.isHeader then
+                    if y > 0 then y = y + OVERVIEW_GROUP_GAP end
+                    stripe = 0
+                else
+                    count = count + 1
+                    stripe = stripe + 1
+                    line.stripe:SetShown(stripe % 2 == 0)
+                end
+                line:ClearAllPoints()
+                line:SetPoint("TOPLEFT", self, "TOPLEFT", 0, -y)
+                line:SetWidth(width)
+                y = y + line:GetHeight()
+            end
+        end
+
+        self.empty:SetShown(count == 0)
+        if count == 0 then
+            self.empty:SetWidth(width - 40)
+            self.empty:SetText(L.SEARCH_EMPTY:format(query))
+            y = 24 + math.ceil(self.empty:GetStringHeight()) + 24
         end
         self:SetHeight(math.max(1, y))
     end
 
     list:Refresh()
     table.insert(page.items, list)
+    overviewList = list
+end
+
+-- Typing in the search box shows the overview, cut down to what matches.
+local function ApplySearch(text)
+    local query = strtrim(text or "")
+    if query == searchQuery then return end
+    searchQuery = query
+    local page = overviewKey and pages[overviewKey]
+    if not page then return end
+    page.scroll:SetVerticalScroll(0)
+    if query ~= "" and currentKey ~= overviewKey then
+        Panel:Select(overviewKey) -- lays the page out as it shows
+    else
+        page.Relayout()
+    end
 end
 
 local function BuildSettingsPage(page)
@@ -394,6 +513,10 @@ local function BuildChrome()
     end)
     frame:SetScript("OnHide", function()
         PlaySound(SOUNDKIT.IG_CHARACTER_INFO_CLOSE)
+        -- The window opens again on the full list, not on an old search.
+        frame.searchBox:SetText("")
+        frame.searchBox:ClearFocus()
+        ApplySearch("")
     end)
     frame:SetWindowTitle(L.ADDON_TITLE)
 
@@ -401,6 +524,18 @@ local function BuildChrome()
     tagline:SetPoint("TOPLEFT", 66, -37)
     tagline:SetTextColor(unpack(UI.MUTED))
     UI.Localize(tagline, "TAGLINE")
+
+    -- Search box, top right of the header: filters the overview as you type.
+    local searchTemplate = UI.HasTemplate("SearchBoxTemplate") and "SearchBoxTemplate" or "InputBoxTemplate"
+    frame.searchBox = CreateFrame("EditBox", nil, frame, searchTemplate)
+    frame.searchBox:SetSize(200, 20)
+    frame.searchBox:SetPoint("TOPRIGHT", -14, -32)
+    frame.searchBox:SetAutoFocus(false)
+    frame.searchBox:SetMaxLetters(40)
+    if frame.searchBox.Instructions then UI.Localize(frame.searchBox.Instructions, "SEARCH_FEATURES") end
+    frame.searchBox:HookScript("OnTextChanged", function(self) ApplySearch(self:GetText()) end)
+    frame.searchBox:HookScript("OnEscapePressed", function(self) self:ClearFocus() end)
+    frame.searchBox:HookScript("OnEnterPressed", function(self) self:ClearFocus() end)
 
     frame.sidebar = UI.CreateInset(frame)
     frame.sidebar:SetPoint("TOPLEFT", 6, HEADER_OFFSET)
@@ -467,6 +602,7 @@ local function BuildNavigation()
                 BuildSettingsPage(page)
             elseif category.overview then
                 BuildOverviewPage(page)
+                overviewKey = category.key
             else
                 BuildFeaturePage(page, category)
             end
@@ -487,6 +623,12 @@ end
 
 function Panel:Select(key)
     if not pages[key] then key = DefaultKey() end
+    -- Leaving the overview for another page ends the search.
+    if key ~= overviewKey and searchQuery ~= "" and frame.searchBox then
+        frame.searchBox:SetText("")
+        frame.searchBox:ClearFocus()
+        searchQuery = "" -- the page being left is laid out again when it next shows
+    end
     currentKey = key
     ns.db.window.page = key
     for pageKey, page in pairs(pages) do

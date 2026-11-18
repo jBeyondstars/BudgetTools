@@ -70,6 +70,24 @@ local pending                -- { slot, link, time } after a swap
 local generation = 0         -- cancels scheduled proposals
 local window
 
+-- Diagnostic trace (/bgt swap), off by default and not saved: prints each
+-- decision so a "nothing happened" can be explained.
+local trace = false
+local function Trace(text, ...)
+    if not trace then return end
+    local args = { ... }
+    for i = 1, select("#", ...) do
+        local value = args[i]
+        args[i] = (value == nil or Util.Readable(value)) and tostring(value) or "<secret>"
+    end
+    ns:Print("|cff9d9d9d[swap]|r " .. text:format(unpack(args, 1, select("#", ...))))
+end
+
+function Swap.ToggleTrace()
+    trace = not trace
+    ns:Print("|cff9d9d9d[swap]|r trace " .. (trace and "ON" or "OFF"))
+end
+
 ---------------------------------------------------------------------------
 -- Game data
 ---------------------------------------------------------------------------
@@ -284,24 +302,43 @@ end
 -- An item can make room when it is cheaper than the loot AND not of a better
 -- quality: never a green for a grey. Quest loot is worth nothing at the
 -- vendor but is wanted, so only quality caps apply to it.
-function Swap.FindCandidates(loot)
+-- `why` (optional table) counts the rejected bag items by reason.
+function Swap.FindCandidates(loot, why)
     local list = {}
+    local function Reject(reason) if why then why[reason] = (why[reason] or 0) + 1 end end
     local maxQuality = ns:GetOption(KEY, "allowGreen") and MAX_QUALITY or 1
     if not loot.quest then maxQuality = math.min(maxQuality, loot.quality or 0) end
     for bag = 0, LastBag() do
         local _, family = FreeSlots(bag)
         -- A slot freed in a quiver or herb bag would not take the loot.
-        if family == 0 then
+        if family ~= 0 then
+            Reject("specialBag")
+        else
             for slot = 1, NumSlots(bag) do
                 local link, count, locked, noValue, quality, icon, hasLoot = BagItem(bag, slot)
-                if link and not locked and not noValue then
+                if not link then
+                    Reject("empty")
+                elseif locked or noValue then
+                    Reject("lockedOrNoValue")
+                else
                     local itemID = ItemID(link)
                     local name, itemQuality, itemIcon, sellPrice, classID = ItemData(link)
                     quality = quality or itemQuality
-                    if itemID and itemID ~= loot.itemID and quality and quality <= maxQuality
-                        and sellPrice and sellPrice > 0 and not IsProtected(itemID, classID) then
+                    if not itemID or itemID == loot.itemID then
+                        Reject("sameItem")
+                    elseif not quality or quality > maxQuality then
+                        Reject("quality")
+                    elseif not sellPrice or sellPrice <= 0 then
+                        Reject("noPrice")
+                    elseif IsProtected(itemID, classID) then
+                        Reject("protected")
+                    else
                         local value, unit, source = Worth(link, sellPrice, count, quality)
-                        if (loot.quest or value < loot.value) and not IsOpenable(bag, slot, hasLoot) then
+                        if not (loot.quest or value < loot.value) then
+                            Reject("pricier")
+                        elseif IsOpenable(bag, slot, hasLoot) then
+                            Reject("openable")
+                        else
                             list[#list + 1] = {
                                 bag = bag, slot = slot, link = link, itemID = itemID, name = name,
                                 quality = quality, icon = icon or itemIcon, count = count,
@@ -687,14 +724,26 @@ end
 
 local retried = {}  -- loot link -> true: item data requested once
 
+-- "0:0/0 1:2/0 ..." = bag:free/family, for the trace.
+local function BagsText()
+    local parts = {}
+    for bag = 0, LastBag() do
+        local free, family = FreeSlots(bag)
+        parts[#parts + 1] = ("%d:%d/%d"):format(bag, free, family)
+    end
+    return table.concat(parts, " ")
+end
+
 function Swap.Propose()
     generation = generation + 1
     if not ns:IsEnabled(KEY) or not LootIsOpen() then
+        Trace("stop: enabled=%s lootOpen=%s numLoot=%s", ns:IsEnabled(KEY), lootOpen, NumLoot())
         Swap.HideProposal()
         return
     end
     -- Room again (the player sold or moved something): nothing to do.
     if TotalFree() > 0 then
+        Trace("stop: free slots in normal bags (bag:free/family) %s", BagsText())
         Swap.HideProposal()
         return
     end
@@ -707,12 +756,14 @@ function Swap.Propose()
     local shown = window and window:IsShown() and window.loot
     local loot = Valid(focus) or (shown and Valid(shown.slot, shown.link)) or Swap.PickTarget()
     if not loot then
+        Trace("stop: no loot target (focus=%s wantAll=%s numLoot=%s)", focus, wantAll, NumLoot())
         Swap.HideProposal()
         return
     end
 
     -- Not cached yet: ask the client and look again shortly.
     if loot.unknown and not loot.quest and not retried[loot.link] then
+        Trace("%s not cached yet, retrying", loot.link)
         retried[loot.link] = true
         if loot.itemID and C_Item and C_Item.RequestLoadItemDataByID then
             pcall(C_Item.RequestLoadItemDataByID, loot.itemID)
@@ -721,13 +772,19 @@ function Swap.Propose()
         return
     end
 
-    local list = Swap.FindCandidates(loot)
-    if #list == 0 and window and window:IsShown() then
-        -- Open already (e.g. after "Always keep"): say why instead of vanishing.
-        Swap.ShowProposal(loot, list)
-        return
-    elseif #list == 0 then
-        Swap.HideProposal()
+    -- Nothing can go: the window opens anyway to say why (option), else one
+    -- chat line per loot window. Already open (e.g. after "Always keep"), it
+    -- stays and says why instead of vanishing.
+    local why = trace and {} or nil
+    local list = Swap.FindCandidates(loot, why)
+    if trace then
+        local parts = {}
+        for reason, count in pairs(why) do parts[#parts + 1] = reason .. "=" .. count end
+        table.sort(parts)
+        Trace("loot %s value=%s quality=%s quest=%s unknown=%s -> %d candidate(s); rejected: %s",
+            loot.link, loot.value, loot.quality, loot.quest, loot.unknown, #list, table.concat(parts, " "))
+    end
+    if #list == 0 and not (window and window:IsShown()) and not ns:GetOption(KEY, "showEmpty") then
         if not notified then
             notified = true
             ns:Print(L.SWAP_NONE:format(loot.link))
@@ -766,6 +823,7 @@ end
 local handlers = {}
 
 function handlers.LOOT_OPENED()
+    Trace("LOOT_OPENED numLoot=%s errorAt=%s", NumLoot(), errorAt)
     lootOpen = true
     -- With autoloot the error can come before the window opens.
     if errorAt and GetTime() - errorAt < 2 then Schedule(PROPOSE_DELAY) end
@@ -786,7 +844,9 @@ function handlers.LOOT_SLOT_CLEARED(slot)
 end
 
 function handlers.UI_ERROR_MESSAGE(errorType, message)
-    if not IsBagsFull(errorType, message) then return end
+    local full = IsBagsFull(errorType, message)
+    Trace("UI_ERROR_MESSAGE type=%s msg=%s bagsFull=%s lootOpen=%s", errorType, message, full, lootOpen)
+    if not full then return end
     local now = GetTime()
     errorAt = now
 
@@ -815,6 +875,7 @@ function handlers.UI_ERROR_MESSAGE(errorType, message)
     else
         wantAll = true
     end
+    Trace("focus=%s wantAll=%s, propose=%s", focus, wantAll, lootOpen)
     if lootOpen then Schedule(PROPOSE_DELAY) end
 end
 
@@ -879,6 +940,7 @@ ns:RegisterFeature({
         { key = "allowGreen", title = "SWAP_OPT_GREEN", tip = "SWAP_OPT_GREEN_TIP", default = true },
         { key = "protectUseful", title = "SWAP_OPT_USEFUL", tip = "SWAP_OPT_USEFUL_TIP", default = true },
         { key = "useAuction", title = "SWAP_OPT_AH", tip = "SWAP_OPT_AH_TIP", default = true },
+        { key = "showEmpty", title = "SWAP_OPT_EMPTY", tip = "SWAP_OPT_EMPTY_TIP", default = true },
         { key = "clearKeep", title = "SWAP_OPT_CLEAR", tip = "SWAP_OPT_CLEAR_TIP", action = function() Swap.ClearKeep() end },
     },
     OnEnable = Enable,

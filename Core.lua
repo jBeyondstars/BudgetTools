@@ -51,6 +51,8 @@ end
 --   title, desc, tip   locale keys
 --   default   true to enable it on a fresh install
 --   reload    true if toggling it needs /reload (no live OnEnable/OnDisable)
+--   reloadToDisable, IsActive   on works live, off needs /reload while
+--             IsActive() is true (a load-on-demand module cannot be unloaded)
 --   isNew     shows a NEW badge
 --   options   sub-options: { { key, title, tip, default }, ... }
 --   OnEnable(def), OnDisable(def)
@@ -130,11 +132,15 @@ function ns:SetOption(key, option, value)
     self:Fire("OPTION_CHANGED", key, option, value)
 end
 
--- True when a reload-only feature was toggled since login.
+-- True when a reload-only feature was toggled since login, or a module that
+-- cannot be unloaded was turned off.
 function ns:NeedsReload()
     if not self.db then return false end
     for _, def in ipairs(self.features) do
         if def.reload and (self.db.features[def.key] == true) ~= (enabledAtLogin[def.key] == true) then
+            return true
+        end
+        if def.reloadToDisable and self.db.features[def.key] ~= true and def.IsActive and def.IsActive() then
             return true
         end
     end
@@ -166,6 +172,8 @@ local DEFAULTS = {
     bars = {},     -- ["Name-Realm"] = { specs = { [spec] = action bar copy } }; kept by the reset
     xp = {},       -- XP per hour: pos, scale, chars["Name-Realm"] = session; sessions kept by the reset
     bags = {},     -- item type names in the combined bag: font (text size), spacing (extra space between rows)
+    trinkets = {}, -- trinket bar: pos = { point, relativePoint, x, y } once the bar was dragged
+    buffs = {},    -- buff key: chars["Name-Realm"] = { order, on, rank }; kept by the reset
     window = {},
 }
 
@@ -212,13 +220,16 @@ StaticPopupDialogs["BUDGETFOREVER_RESET"] = {
     OnAccept = function()
         -- Settings go back to defaults; notes, the LFG message, the
         -- "always keep" list, the macro wheels, the hunting list, the
-        -- pinned recipes and the action bar copies are data, not settings (the hunting button goes
+        -- pinned recipes, the action bar copies and the bag sort history are data, not settings (the hunting button goes
         -- back in place).
         local old = type(BudgetForeverDB) == "table" and BudgetForeverDB or {}
         local hunt = type(old.hunt) == "table" and { list = old.hunt.list, chars = old.hunt.chars } or nil
         local xp = type(old.xp) == "table" and { chars = old.xp.chars } or nil
+        local bagsort = type(old.bagsort) == "table" and { chars = old.bagsort.chars } or nil
+        local buffs = type(old.buffs) == "table" and { chars = old.buffs.chars } or nil
         BudgetForeverDB = { players = old.players, lfg = old.lfg, loot = old.loot, wheel = old.wheel, hunt = hunt,
-            recipes = old.recipes, bars = old.bars, xp = xp }
+            recipes = old.recipes, bars = old.bars, xp = xp, bagsort = bagsort, buffs = buffs,
+            setcolors = old.setcolors }
         ReloadUI()
     end,
     timeout = 0,
@@ -290,6 +301,13 @@ SlashCmdList.BUDGETFOREVER = function(message)
         ns.BarSaver.Command(rest)
     elseif command == "xp" and ns.XPRate then
         ns.XPRate.Command(rest)
+    elseif (command == "trinket" or command == "trinkets" or command == "bijou" or command == "bijoux")
+        and ns.TrinketBar then
+        ns.TrinketBar.Command(rest)
+    elseif (command == "buffs" or command == "buff") and ns.Buffs then
+        ns.Buffs.Command(rest)
+    elseif command == "swap" and ns.LootSwap then
+        ns.LootSwap.ToggleTrace()
     elseif command == "help" or command == "?" then
         ns:Print(L.HELP_TOGGLE)
         ns:Print(L.HELP_NOTE)
@@ -301,6 +319,8 @@ SlashCmdList.BUDGETFOREVER = function(message)
         ns:Print(L.HELP_AURAS)
         ns:Print(L.HELP_BARS)
         ns:Print(L.HELP_XP)
+        ns:Print(L.HELP_TRINKET)
+        ns:Print(L.HELP_BUFFS)
         ns:Print(L.HELP_RESET)
     else
         ns.Panel:Toggle()

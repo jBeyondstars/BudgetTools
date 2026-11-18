@@ -34,6 +34,11 @@ The room between rows:
   setting, or turning the feature off, can redo or undo the push without
   asking Blizzard for a new layout.
 
+With BagSort's own sorts:
+  When "Clean up bags" sorts by pickup order or by use (Features\BagSort.lua),
+  the items aren't grouped by type any more: the labels are hidden and the
+  rows get Blizzard's spacing back, until the game's sort is chosen again.
+
 When the labels refresh:
   When the bag shows, after Blizzard redraws or lays out the items, and on
   BAG_UPDATE_DELAYED. Refreshes are grouped to one per frame.
@@ -172,8 +177,20 @@ local function Gamepad()
     return ok and on == true
 end
 
+-- With one of BagSort's own sorts ("Clean up bags" by pickup order or by
+-- use) the items aren't grouped by type, so a name would sit over almost
+-- every item: no names then, and no room made for them.
+local function OwnSort()
+    local sort = ns.BagSort
+    return sort ~= nil and ns:IsEnabled("bagSort") and sort.Mode() ~= "default"
+end
+
+local function Showing()
+    return active and not OwnSort()
+end
+
 local function WantedSpacing()
-    if not active or Gamepad() then return 0 end
+    if not Showing() or Gamepad() then return 0 end
     return Bags.Spacing()
 end
 
@@ -355,7 +372,7 @@ end
 local function Refresh()
     pending = false
     local frame = Container()
-    if not active or not frame or not frame:IsShown() then
+    if not Showing() or not frame or not frame:IsShown() then
         if overlay then overlay:Hide() end
         return
     end
@@ -400,12 +417,19 @@ local function Apply()
         Grow(frame, false)
         Spread(frame, false)
     end, geterrorhandler())
-    if active then
+    if Showing() then
         Schedule()
     elseif overlay then
         overlay:Hide()
     end
 end
+
+-- The sort's mode, or the sort feature itself, changed.
+local function SortChanged(key)
+    if key == "bagSort" and active then Apply() end
+end
+ns:On("OPTION_CHANGED", SortChanged)
+ns:On("FEATURE_CHANGED", SortChanged)
 
 ---------------------------------------------------------------------------
 -- Hooks

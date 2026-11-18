@@ -40,15 +40,25 @@ The finder reads its data from the **QuestieDB** addon, so install that too. Que
 
 **Room for loot when your bags are full.** Your bags are full and something good drops. BudgetTools offers to destroy a cheaper item so you can take the loot, grey junk first. You confirm with a click before anything goes. It leaves out blue and better items, quest items, keys, bags, lockboxes and profession tools. With Auctionator installed, it compares auction prices.
 
+![Room for loot: a cheaper item proposed for destruction](https://raw.githubusercontent.com/jBeyondstars/BudgetTools/main/docs/screenshots/loot-swap.png)
+
 **Item type names in the combined bag.** A small name (Consumable, Weapon, Quest...) sits above the first item of each group in the combined backpack, so you see where "Clean up bags" put each kind of item. Grey items share one name, Junk. You choose the text size and how much room the rows leave for the names.
 
 ![Type names in the combined backpack](https://raw.githubusercontent.com/jBeyondstars/BudgetTools/main/docs/screenshots/bag-types.png)
+
+**Your own sort for "Clean up bags".** Right-click the clean-up button of your bags to choose how it sorts: the game's default, pickup order (the items you got first come first, the newest last) or most used items first. Pickups and uses are counted per character. Nothing is grouped by type, not even grey items, and the type names are hidden while these sorts are on. Bags set to "Ignore this bag" stay as they are. Tick "Keep equipment sets together" and every sort, the game's default included, puts the items of each equipment set side by side at the start of your bags.
+
+**Equipment set colors.** Give an equipment set a color from its gear button in the Equipment Manager. Every item of that set gets a border of that color in your bags and bank, so you see at a glance what belongs to which set. An item in two colored sets shows both colors. Each character has its own colors.
+
+![Choosing a set's color in the Equipment Manager](https://raw.githubusercontent.com/jBeyondstars/BudgetTools/main/docs/screenshots/set-colors-menu.png) ![Set items with their colored border, kept together in the bags](https://raw.githubusercontent.com/jBeyondstars/BudgetTools/main/docs/screenshots/set-colors-bags.png)
 
 **Macro and emote wheel.** Hold a key and a wheel of up to 8 macros and emotes opens around your cursor. Move toward one and release. It works in combat.
 
 ![The wheel open around the cursor](https://raw.githubusercontent.com/jBeyondstars/BudgetTools/main/docs/screenshots/wheel.png) ![Setting up the wheel](https://raw.githubusercontent.com/jBeyondstars/BudgetTools/main/docs/screenshots/wheel-editor.png)
 
 **Action bar backup.** Dual spec on WoW Forever can empty your action bars. BudgetTools keeps a copy of your bars for each spec and puts back the actions the game loses after a logout, a reload or a spec swap. It saves spells with their exact rank and waits for the end of a fight before it restores anything.
+
+**Trinket bar.** A small bar shows your two equipped trinkets and their cooldowns. Click one to use it, or give each a key. Hover the bar to see the trinkets in your bags: left-click equips one in the top slot, right-click in the bottom slot. The game blocks trinket swaps in combat, so the one you pick waits and goes on when the fight ends.
 
 ## Professions and leveling
 
@@ -89,6 +99,7 @@ The finder reads its data from the **QuestieDB** addon, so install that too. Que
 | <code>/hunt Name</code>    | Add an NPC to your hunting list                          |
 | <code>/bgt bars</code>      | Check, save or restore your action bar copy              |
 | <code>/bgt xp</code>        | Print your XP per hour in chat                           |
+| <code>/bgt trinket</code>   | List your equipped trinkets (<code>reset</code> puts the bar back in place) |
 | <code>/bgt auras</code>     | List the auras hidden on raid frames                     |
 | <code>/bgt reset</code>     | Restore the default settings (your notes and lists stay) |
 

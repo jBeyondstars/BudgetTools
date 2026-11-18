@@ -1,4 +1,14 @@
 <Bindings>
 	<Binding name="CLICK BudgetForeverMacroWheel:LeftButton" header="BUDGETFOREVER" category="ADDONS"/>
 	<Binding name="CLICK BudgetForeverHunt:LeftButton" category="ADDONS"/>
+	<Binding name="CLICK BudgetForeverTrinketKey1:LeftButton" category="ADDONS"/>
+	<Binding name="CLICK BudgetForeverTrinketKey2:LeftButton" category="ADDONS"/>
+	<Binding name="CLICK BudgetForeverBuffKey:LeftButton" category="ADDONS"/>
+	<Binding name="CLICK BudgetForeverBuffKey2:LeftButton" category="ADDONS"/>
+	<Binding name="CLICK BudgetForeverBuffKey3:LeftButton" category="ADDONS"/>
+	<Binding name="CLICK BudgetForeverBuffKey4:LeftButton" category="ADDONS"/>
+	<Binding name="CLICK BudgetForeverBuffKey5:LeftButton" category="ADDONS"/>
+	<Binding name="CLICK BudgetForeverBuffKey6:LeftButton" category="ADDONS"/>
+	<Binding name="CLICK BudgetForeverBuffKey7:LeftButton" category="ADDONS"/>
+	<Binding name="CLICK BudgetForeverBuffKey8:LeftButton" category="ADDONS"/>
 </Bindings>
