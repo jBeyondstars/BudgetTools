@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.1.2
+
+### Improvements
+- Moving items only scans the bags involved, and equipment set colors refresh once per frame for each bag window.
+- After the game's default sort, BudgetTools skips the grouping pass when equipment sets are already together at the front and no stacks need merging.
+
+## 1.1.1
+
+### Improvements
+- Quest chains: select any step to see its XP and available rewards, including money, guaranteed items and reward choices. Reference values from QuestieDB are labeled when the game doesn't provide the details.
+
+### Fixes
+- Quest chains: the Chain button aligns with Back in the map's quest details and is also available in the standalone quest details window. Quests that reward money now display correctly on WoW Forever.
+
 ## 1.1.0
 
 ### New tools

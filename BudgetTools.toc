@@ -3,7 +3,7 @@
 ## Notes: Quality-of-life tweaks for WoW Forever, each one switchable. Type /bgt.
 ## Notes-frFR: Améliorations de confort pour WoW Forever, activables une par une. Tapez /bgt.
 ## Author: BudgetTools
-## Version: 1.1.0
+## Version: 1.1.2
 ## IconTexture: Interface\AddOns\BudgetTools\Media\Logo.tga
 ## SavedVariables: BudgetForeverDB
 ## OptionalDeps: QuestieDB, TomTom, OpenMap

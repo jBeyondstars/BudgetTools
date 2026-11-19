@@ -79,6 +79,9 @@ local active = false
 local events
 local hookedButton = false
 local hookedUse = false
+local bagCounts
+local dirtyBags = {}
+local trackAfterCursor = false
 
 local function Num(value)
     if Util.Readable(value) and type(value) == "number" then return value end
@@ -150,6 +153,7 @@ end
 -- For tests.
 function Sort.ResetCache()
     charData = nil
+    bagCounts = nil
 end
 
 ---------------------------------------------------------------------------
@@ -212,32 +216,64 @@ end
 -- Pickup order
 ---------------------------------------------------------------------------
 
-local function CountItems()
-    local counts, any = {}, false
-    for bag = 0, LastCountedBag() do
-        for slot = 1, NumSlots(bag) do
-            local item = SlotItem(bag, slot)
-            if item then
-                counts[item.id] = (counts[item.id] or 0) + item.count
-                any = true
-            end
+local function CountBag(bag)
+    local counts = {}
+    for slot = 1, NumSlots(bag) do
+        local item = SlotItem(bag, slot)
+        if item then
+            counts[item.id] = (counts[item.id] or 0) + item.count
         end
     end
-    return counts, any
+    return counts
+end
+
+local function CountItems()
+    if not bagCounts then
+        bagCounts = {}
+        dirtyBags = {}
+        for bag = 0, LastCountedBag() do
+            dirtyBags[bag] = true
+        end
+    end
+    for bag in pairs(dirtyBags) do bagCounts[bag] = CountBag(bag) end
+    dirtyBags = {}
+
+    -- Add up the bags only after both sides of a transfer have been read.
+    local counts = {}
+    for _, snapshot in pairs(bagCounts) do
+        for id, count in pairs(snapshot) do
+            counts[id] = (counts[id] or 0) + count
+        end
+    end
+    return counts
+end
+
+local function HoldingItem()
+    return GetCursorInfo and GetCursorInfo() == "item"
 end
 
 -- Compares the totals with the last look; more of an item = just picked up.
-function Sort.Track()
+function Sort.Track(full)
+    if full then bagCounts = nil end
+    if bagCounts and not next(dirtyBags) then return end
     local data = Char()
     if not data then return end
-    local counts, any = CountItems()
-    if data.counts == nil then
-        -- First look for this character: what is there is old, not new.
-        if any then data.counts = counts end
+    if HoldingItem() then
+        trackAfterCursor = true
         return
     end
-    -- Bags read as empty right after login while the client loads them.
-    if not any and next(data.counts) ~= nil then return end
+    trackAfterCursor = false
+    local counts = CountItems()
+    -- Bags can read as empty right after login. Retry a full scan once they load.
+    if not next(counts) then
+        bagCounts = nil
+        return
+    end
+    if data.counts == nil then
+        -- First look for this character: what is there is old, not new.
+        data.counts = counts
+        return
+    end
     local fresh = {}
     for id, count in pairs(counts) do
         if count > (data.counts[id] or 0) then table.insert(fresh, id) end
@@ -457,6 +493,11 @@ local function CursorBusy()
     return GetCursorInfo and GetCursorInfo() ~= nil
 end
 
+local function SortBlocked()
+    if InCombatLockdown and InCombatLockdown() then return L.BAGSORT_STOP_COMBAT end
+    if CursorBusy() then return L.BAGSORT_STOP_CURSOR end
+end
+
 local function Move(from, to)
     C_Container.PickupContainerItem(from.bag, from.slot)
     C_Container.PickupContainerItem(to.bag, to.slot)
@@ -576,12 +617,9 @@ end
 -- One step of the sort. Returns "wait", "moved", "done" or "stuck".
 function Sort.Step()
     if not job then return "done" end
-    if InCombatLockdown and InCombatLockdown() then
-        Stop(L.BAGSORT_STOP_COMBAT)
-        return "stuck"
-    end
-    if CursorBusy() then
-        Stop(L.BAGSORT_STOP_CURSOR)
+    local message = SortBlocked()
+    if message then
+        Stop(message)
         return "stuck"
     end
     local slots = job.slots
@@ -619,19 +657,41 @@ end
 function Sort.SettleStep()
     if not settle then return end
     local now = GetTime()
-    if now - settle.started > SETTLE_TIMEOUT then
+    if now - settle.started > SETTLE_TIMEOUT or not Sort.KeepSets() then
         Stop()
         return
     end
     if now - settle.last < SETTLE_QUIET then return end
-    local found = false
-    for _, slot in ipairs(Sort.Slots()) do
+    local slots = Sort.Slots()
+    local setItems, lastRank, needsGrouping = 0, 0, false
+    for index, slot in ipairs(slots) do
         local item = SlotItem(slot.bag, slot.slot)
         if item and item.locked then return end
-        if item and ns.SetColors.Rank(slot.bag, slot.slot) then found = true end
+        slot.item = item
+        local rank = item and ns.SetColors.Rank(slot.bag, slot.slot)
+        if rank then
+            setItems = setItems + 1
+            -- The first slots must hold only set items, in set order.
+            if index ~= setItems or rank < lastRank then needsGrouping = true end
+            lastRank = rank
+        end
     end
-    Stop()
-    if found then Sort.Start("default") end
+    if setItems == 0 then
+        Stop()
+        return
+    end
+    local message = SortBlocked()
+    if message then
+        Stop(message)
+        return
+    end
+    local moved = MergeStacks(slots)
+    if not moved and not needsGrouping then
+        Stop()
+        return
+    end
+    settle = nil
+    job = { mode = "default", slots = slots, started = now, merged = not moved, keepSets = true }
 end
 
 local function OnUpdate(self, elapsed)
@@ -679,15 +739,12 @@ end
 
 function Sort.Start(mode)
     mode = mode or Sort.Mode()
-    if InCombatLockdown and InCombatLockdown() then
-        ns:Print(L.BAGSORT_STOP_COMBAT)
+    local message = SortBlocked()
+    if message then
+        ns:Print(message)
         return false
     end
-    if CursorBusy() then
-        ns:Print(L.BAGSORT_STOP_CURSOR)
-        return false
-    end
-    if mode == "pickup" then Sort.Track() end -- anything that just arrived counts
+    if mode == "pickup" then Sort.Track(true) end -- anything that just arrived counts
     settle = nil
     job = { mode = mode, slots = Sort.Slots(), started = GetTime(), merged = false, keepSets = Sort.KeepSets() }
     ShowRunner()
@@ -770,7 +827,12 @@ end
 -- Registration
 ---------------------------------------------------------------------------
 
-local function OnEvent(_, event)
+local function TrackAfterCursor()
+    -- The cursor event can come before the bag events for the drop.
+    if active and trackAfterCursor then Sort.Track() end
+end
+
+local function OnEvent(_, event, bag)
     if event == "PLAYER_REGEN_DISABLED" then
         if job then
             Stop(L.BAGSORT_STOP_COMBAT)
@@ -779,9 +841,18 @@ local function OnEvent(_, event)
         end
         return
     end
-    if event == "BAG_UPDATE_DELAYED" and settle then settle.last = GetTime() end
-    if event == "PLAYER_ENTERING_WORLD" then InstallButton() end
-    Sort.Track()
+    if event == "BAG_UPDATE" then
+        bag = Num(bag)
+        if bag and bag >= 0 and bag <= LastCountedBag() then dirtyBags[bag] = true end
+    elseif event == "BAG_UPDATE_DELAYED" then
+        if settle then settle.last = GetTime() end
+        Sort.Track()
+    elseif event == "CURSOR_CHANGED" then
+        if trackAfterCursor and not HoldingItem() then C_Timer.After(0, TrackAfterCursor) end
+    elseif event == "PLAYER_ENTERING_WORLD" then
+        InstallButton()
+        Sort.Track(true)
+    end
 end
 
 ns:RegisterFeature({
@@ -805,16 +876,19 @@ ns:RegisterFeature({
             events = CreateFrame("Frame")
             events:SetScript("OnEvent", OnEvent)
         end
+        events:RegisterEvent("BAG_UPDATE")
         events:RegisterEvent("BAG_UPDATE_DELAYED")
+        events:RegisterEvent("CURSOR_CHANGED")
         events:RegisterEvent("PLAYER_ENTERING_WORLD")
         events:RegisterEvent("PLAYER_REGEN_DISABLED")
         InstallUseHooks()
         InstallButton()
-        Sort.Track()
+        Sort.Track(true)
     end,
     OnDisable = function()
         -- The hooks can't be removed; they stay and let the game's sort run.
         active = false
+        trackAfterCursor = false
         Stop()
         if events then events:UnregisterAllEvents() end
     end,

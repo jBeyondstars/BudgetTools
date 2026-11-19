@@ -60,6 +60,7 @@ local PALETTE = {
 local active = false
 local hooked = false
 local pending = false
+local pendingContainers = {}
 
 ---------------------------------------------------------------------------
 -- Saved colors
@@ -307,6 +308,17 @@ local function Refresh()
     C_Timer.After(0, SafeRefresh)
 end
 
+local function QueueContainer(frame)
+    if not active or pending or pendingContainers[frame] then return end
+    pendingContainers[frame] = true
+    C_Timer.After(0, function()
+        pendingContainers[frame] = nil
+        if active and not pending then
+            xpcall(PaintContainer, geterrorhandler(), frame)
+        end
+    end)
+end
+
 ---------------------------------------------------------------------------
 -- Choosing a color
 ---------------------------------------------------------------------------
@@ -416,9 +428,7 @@ local function InstallHooks()
     hooked = true
     ForEachContainer(function(frame)
         if type(frame.UpdateItems) == "function" then
-            hooksecurefunc(frame, "UpdateItems", function(self)
-                xpcall(PaintContainer, geterrorhandler(), self)
-            end)
+            hooksecurefunc(frame, "UpdateItems", QueueContainer)
         end
     end)
     -- Forever's bank buttons call this one from their own Refresh.
