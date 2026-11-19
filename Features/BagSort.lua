@@ -47,7 +47,8 @@ The sort itself:
   The order follows the combined backpack as you read it (top row first,
   left to right); with separate bags, the backpack first, slot 1 first.
   Bags marked "Ignore this bag" and special bags (quiver, soul bag...) are
-  left out, like the game's own sort does.
+  left out, like the game's own sort does. The reagent bag is sorted the
+  same way but on its own (only reagents fit in it), as its window reads.
 
 Keeping equipment sets together (option "keepSets", off by default):
   The items of each equipment set go first in the bags, set after set; an
@@ -436,6 +437,42 @@ local function Round(value)
     return math.floor(value + 0.5)
 end
 
+-- The slots of `bags` ({ [bag] = size }) as they read in `frame` (top row
+-- first, left to right), or nil when the frame doesn't show them all.
+local function ScreenOrder(frame, bags, total)
+    if not frame or not frame:IsShown() or not Util.ReadableTable(frame.Items) then return end
+    local list = {}
+    for _, button in ipairs(frame.Items) do
+        if button:IsShown() then
+            local okBag, bag = pcall(button.GetBagID, button)
+            local okSlot, slot = pcall(button.GetID, button)
+            bag, slot = okBag and Num(bag), okSlot and Num(slot)
+            local left, top = Num(button:GetLeft()), Num(button:GetTop())
+            if bag and slot and left and top and bags[bag] then
+                table.insert(list, { bag = bag, slot = slot, row = Round(top), left = left })
+            end
+        end
+    end
+    if #list ~= total then return end
+    table.sort(list, function(a, b)
+        if a.row ~= b.row then return a.row > b.row end
+        return a.left < b.left
+    end)
+    return list
+end
+
+local function SlotOrder(bags, first, last)
+    local list = {}
+    for bag = first, last do
+        if bags[bag] then
+            for slot = 1, bags[bag] do
+                table.insert(list, { bag = bag, slot = slot })
+            end
+        end
+    end
+    return list
+end
+
 function Sort.Slots()
     local bags, total = {}, 0
     for bag = 0, LastBag() do
@@ -445,40 +482,33 @@ function Sort.Slots()
             total = total + size
         end
     end
-
     -- The combined backpack, as it reads on screen.
-    local frame = ContainerFrameCombinedBags
-    if frame and frame:IsShown() and Util.ReadableTable(frame.Items) then
-        local list = {}
-        for _, button in ipairs(frame.Items) do
-            if button:IsShown() then
-                local okBag, bag = pcall(button.GetBagID, button)
-                local okSlot, slot = pcall(button.GetID, button)
-                bag, slot = okBag and Num(bag), okSlot and Num(slot)
-                local left, top = Num(button:GetLeft()), Num(button:GetTop())
-                if bag and slot and left and top and bags[bag] then
-                    table.insert(list, { bag = bag, slot = slot, row = Round(top), left = left })
-                end
-            end
-        end
-        if #list == total then
-            table.sort(list, function(a, b)
-                if a.row ~= b.row then return a.row > b.row end
-                return a.left < b.left
-            end)
-            return list
-        end
-    end
+    return ScreenOrder(ContainerFrameCombinedBags, bags, total) or SlotOrder(bags, 0, LastBag())
+end
 
-    local list = {}
-    for bag = 0, LastBag() do
-        if bags[bag] then
-            for slot = 1, bags[bag] do
-                table.insert(list, { bag = bag, slot = slot })
-            end
+-- The window showing one bag on its own, if open.
+local function BagFrame(bag)
+    for index = 1, (NUM_CONTAINER_FRAMES or 13) do
+        local frame = _G["ContainerFrame" .. index]
+        if frame and frame:IsShown() and frame.GetBagID then
+            local ok, id = pcall(frame.GetBagID, frame)
+            if ok and id == bag then return frame end
         end
     end
-    return list
+end
+
+-- Each reagent bag's slots, sorted on its own: only reagents fit there, so
+-- its items can't be swapped with the other bags'.
+function Sort.ReagentGroups()
+    local groups = {}
+    for bag = LastBag() + 1, LastCountedBag() do
+        local size = NumSlots(bag)
+        if size > 0 and not Ignored(bag) then
+            local bags = { [bag] = size }
+            table.insert(groups, ScreenOrder(BagFrame(bag), bags, size) or SlotOrder(bags, bag, bag))
+        end
+    end
+    return groups
 end
 
 ---------------------------------------------------------------------------
@@ -622,20 +652,30 @@ function Sort.Step()
         Stop(message)
         return "stuck"
     end
-    local slots = job.slots
-    for _, slot in ipairs(slots) do
-        slot.item = SlotItem(slot.bag, slot.slot)
-        if slot.item and slot.item.locked then return "wait" end
-        if slot.item and job.keepSets then
-            slot.item.set = ns.SetColors.Rank(slot.bag, slot.slot)
+    for _, group in ipairs(job.groups) do
+        for _, slot in ipairs(group.slots) do
+            slot.item = SlotItem(slot.bag, slot.slot)
+            if slot.item and slot.item.locked then return "wait" end
+            if slot.item and job.keepSets then
+                slot.item.set = ns.SetColors.Rank(slot.bag, slot.slot)
+            end
         end
     end
     if not job.merged then
-        if MergeStacks(slots) then return "moved" end
+        local merged = false
+        for _, group in ipairs(job.groups) do
+            if MergeStacks(group.slots) then merged = true end
+        end
+        if merged then return "moved" end
         job.merged = true
         return "wait" -- read the bags again before arranging
     end
-    local moves, done = Arrange(slots, job, Char())
+    local data, moves, done = Char(), 0, true
+    for _, group in ipairs(job.groups) do
+        local groupMoves, groupDone = Arrange(group.slots, group, data)
+        moves = moves + groupMoves
+        done = done and groupDone
+    end
     if done then
         Stop()
         return "done"
@@ -691,7 +731,7 @@ function Sort.SettleStep()
         return
     end
     settle = nil
-    job = { mode = "default", slots = slots, started = now, merged = not moved, keepSets = true }
+    job = { groups = { { mode = "default", slots = slots } }, started = now, merged = not moved, keepSets = true }
 end
 
 local function OnUpdate(self, elapsed)
@@ -746,7 +786,11 @@ function Sort.Start(mode)
     end
     if mode == "pickup" then Sort.Track(true) end -- anything that just arrived counts
     settle = nil
-    job = { mode = mode, slots = Sort.Slots(), started = GetTime(), merged = false, keepSets = Sort.KeepSets() }
+    local groups = { { mode = mode, slots = Sort.Slots() } }
+    for _, slots in ipairs(Sort.ReagentGroups()) do
+        table.insert(groups, { mode = mode, slots = slots })
+    end
+    job = { groups = groups, started = GetTime(), merged = false, keepSets = Sort.KeepSets() }
     ShowRunner()
     return true
 end

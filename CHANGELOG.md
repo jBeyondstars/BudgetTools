@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.3
+
+### Fixes
+- Clean up bags sorts the reagent bag again when sorting by pickup order or by use. It is sorted on its own, since only reagents fit in it.
+
 ## 1.1.2
 
 ### Improvements
