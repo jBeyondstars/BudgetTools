@@ -80,9 +80,9 @@ The finder reads its data from the **QuestieDB** addon, so install that too. Que
 
 **Experience per hour.** A small box shows the XP you earn per hour this session and the time left until your next level. Right-click it to pick its lines, its size and its background.
 
-**Quest chains in the quest log.** A quest that belongs to a chain shows its step (2/5) in the quest log. One click opens the whole chain in its own window: the quests you have done, the ones in your log and what comes next. Click any quest of the chain to see its objective, who gives it and who takes it, and to show them on the map. Needs QuestieDB.
+**Quest chains in the quest log.** A quest that belongs to a chain shows its step (2/5) in the quest log. One click opens the whole chain in its own window: the quests you have done, the ones in your log and what comes next. Select a quest to see its objective, rewards and XP, and show its giver and turn-in on the map. Needs QuestieDB.
 
-![The quest chain window next to the quest](https://raw.githubusercontent.com/jBeyondstars/BudgetTools/main/docs/screenshots/quest-chain.png)
+![The quest chain window showing XP, money and two reward choices](https://raw.githubusercontent.com/jBeyondstars/BudgetTools/main/docs/screenshots/quest-chain-rewards.png)
 
 ## Frames and auras
 

@@ -16,6 +16,19 @@ function Util.ReadableTable(value)
     return Util.Readable(value) and type(value) == "table" and (not canaccesstable or canaccesstable(value))
 end
 
+function Util.FormatMoney(copper)
+    copper = math.floor(copper or 0)
+    local ok, text = pcall(GetMoneyString, copper, true)
+    if not (ok and type(text) == "string" and text ~= "") then
+        ok, text = pcall(GetCoinTextureString, copper)
+    end
+    if ok and type(text) == "string" and text ~= "" then return text end
+    local gold, silver, rest = math.floor(copper / 10000), math.floor(copper / 100) % 100, copper % 100
+    if gold > 0 then return ("%dg %ds %dc"):format(gold, silver, rest) end
+    if silver > 0 then return ("%ds %dc"):format(silver, rest) end
+    return ("%dc"):format(rest)
+end
+
 local function MyRealm()
     local realm = GetNormalizedRealmName and GetNormalizedRealmName()
     if Util.Readable(realm) and type(realm) == "string" and realm ~= "" then return realm end

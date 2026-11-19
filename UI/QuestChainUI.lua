@@ -1,5 +1,5 @@
 local _, ns = ...
-local L, UI = ns.L, ns.UI
+local L, UI, Util = ns.L, ns.UI, ns.Util
 local Chain = ns.QuestChain
 
 --[[
@@ -8,9 +8,9 @@ The quest chain window (Features\QuestChain.lua opens it).
 Top: the chain, one line per quest, in order. A check marks a quest you
 did, an arrow one in your log, a dot one to come; the quest the window was
 opened from is in white.
-Bottom: the quest clicked in the list. Its objective, who gives it and who
-takes it, each with a button that shows them on the map through the NPC
-finder (Shift: a TomTom arrow too).
+Bottom: the quest clicked in the list, with its objective, rewards and XP.
+Its giver and turn-in can be shown on the map through the NPC finder
+(Shift: a TomTom arrow too).
 
 It is a window of its own, so it stays up when the map moves to another
 zone, which closes Blizzard's quest details. While it is open it follows
@@ -167,6 +167,116 @@ local function FillGiver(block, giver, place)
     end
 end
 
+local REWARD_GROUPS = {
+    { key = "choices", title = "QUESTCHAIN_REWARD_CHOICE" },
+    { key = "items", title = "QUESTCHAIN_REWARD_ITEMS" },
+    { key = "fallback", title = "QUESTCHAIN_REWARD_KNOWN_ITEMS" },
+    { key = "other" },
+}
+
+local function FormatNumber(value)
+    return BreakUpLargeNumbers and BreakUpLargeNumbers(value) or tostring(value)
+end
+
+local function RewardTooltip(row)
+    local reward = row.reward
+    if not (reward.itemID or reward.spellID or reward.currencyID) then return end
+    GameTooltip:SetOwner(row, "ANCHOR_RIGHT")
+    if reward.itemID then
+        GameTooltip:SetItemByID(reward.itemID)
+    elseif reward.spellID then
+        GameTooltip:SetSpellByID(reward.spellID)
+    else
+        GameTooltip:SetCurrencyByID(reward.currencyID)
+    end
+    GameTooltip:Show()
+end
+
+local function RewardRow(info, index)
+    local row = info.rewardRows[index]
+    if row then return row end
+    row = CreateFrame("Frame", nil, info)
+    row:SetWidth(INFO_WIDTH)
+    row.icon = row:CreateTexture(nil, "ARTWORK")
+    row.icon:SetSize(18, 18)
+    row.icon:SetPoint("TOPLEFT")
+    row.text = row:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+    row.text:SetJustifyH("LEFT")
+    row:SetScript("OnEnter", RewardTooltip)
+    row:SetScript("OnLeave", function(self)
+        if GameTooltip:IsOwned(self) then GameTooltip:Hide() end
+    end)
+    info.rewardRows[index] = row
+    return row
+end
+
+local function FillRewards(info, rewards, place)
+    local summary = {}
+    if rewards.xp ~= nil then
+        summary[#summary + 1] = L.QUESTCHAIN_REWARD_XP:format(FormatNumber(rewards.xp))
+    elseif rewards.referenceXP ~= nil then
+        summary[#summary + 1] = L.QUESTCHAIN_REWARD_REFERENCE_XP:format(FormatNumber(rewards.referenceXP))
+    end
+    if rewards.money and rewards.money > 0 then
+        summary[#summary + 1] = Util.FormatMoney(rewards.money)
+    end
+    place(info.rewardHeader, 12, info.rewardHeader:GetStringHeight())
+    info.rewardSummary:SetText(table.concat(summary, "   "))
+    if #summary > 0 then
+        place(info.rewardSummary, 4, info.rewardSummary:GetStringHeight())
+    else
+        info.rewardSummary:Hide()
+    end
+
+    local index = 0
+    wipe(info.rewardItemIDs)
+    for _, group in ipairs(REWARD_GROUPS) do
+        local list, label = rewards[group.key], info.rewardLabels[group.key]
+        if label then
+            if #list > 0 then place(label, 6, label:GetStringHeight()) else label:Hide() end
+        end
+        for _, reward in ipairs(list) do
+            index = index + 1
+            local row = RewardRow(info, index)
+            row.reward = reward
+            local inspectable = reward.itemID or reward.spellID or reward.currencyID
+            local icon = reward.icon or (inspectable and "Interface\\Icons\\INV_Misc_QuestionMark")
+            row:EnableMouse(inspectable ~= nil)
+            row.icon:SetTexture(icon)
+            row.icon:SetShown(icon ~= nil)
+            local indent = icon and 24 or 0
+            row.text:ClearAllPoints()
+            row.text:SetPoint("TOPLEFT", row, "TOPLEFT", indent, -2)
+            row.text:SetWidth(INFO_WIDTH - indent)
+            local name = reward.name
+            if reward.count and reward.count > 1 then name = name .. "  ×" .. FormatNumber(reward.count) end
+            row.text:SetText(name)
+            local color = reward.quality and ITEM_QUALITY_COLORS[reward.quality] or NORMAL_FONT_COLOR
+            row.text:SetTextColor(color.r, color.g, color.b)
+            local height = math.max(18, row.text:GetStringHeight() + 3)
+            row:SetHeight(height)
+            place(row, 3, height)
+            if reward.itemID then info.rewardItemIDs[reward.itemID] = true end
+        end
+    end
+    for i = index + 1, #info.rewardRows do info.rewardRows[i]:Hide() end
+
+    local status
+    if rewards.pending then
+        status = L.QUESTCHAIN_REWARD_LOADING
+    elseif not rewards.known then
+        status = L.QUESTCHAIN_REWARD_UNAVAILABLE
+    elseif #summary == 0 and index == 0 then
+        status = L.QUESTCHAIN_REWARD_NONE
+    end
+    if status then
+        info.rewardStatus:SetText(status)
+        place(info.rewardStatus, 4, info.rewardStatus:GetStringHeight())
+    else
+        info.rewardStatus:Hide()
+    end
+end
+
 local function FillInfo(quest)
     local info = window.info
     if not quest then
@@ -196,9 +306,14 @@ local function FillInfo(quest)
         info.objective:Hide()
     end
 
+    FillRewards(info, quest.rewards, place)
     FillGiver(info.start, quest.start, place)
     FillGiver(info.finish, quest.finish, place)
     info:SetHeight(math.max(1, used()))
+    if info.questID ~= quest.id then
+        info.questID = quest.id
+        window.infoScroll:SetVerticalScroll(0)
+    end
 end
 
 ---------------------------------------------------------------------------
@@ -231,7 +346,9 @@ end
 
 local refreshQueued = false
 
-local function OnQuestEvent()
+local function OnQuestEvent(_, event, id)
+    if event == "QUEST_DATA_LOAD_RESULT" and id ~= selectedID then return end
+    if event == "GET_ITEM_INFO_RECEIVED" and not window.info.rewardItemIDs[id] then return end
     if refreshQueued then return end
     refreshQueued = true
     C_Timer.After(0.3, function()
@@ -240,7 +357,10 @@ local function OnQuestEvent()
     end)
 end
 
-local EVENTS = { "QUEST_LOG_UPDATE", "QUEST_ACCEPTED", "QUEST_REMOVED", "QUEST_TURNED_IN" }
+local EVENTS = {
+    "QUEST_LOG_UPDATE", "QUEST_ACCEPTED", "QUEST_REMOVED", "QUEST_TURNED_IN",
+    "QUEST_DATA_LOAD_RESULT", "GET_ITEM_INFO_RECEIVED", "PLAYER_LEVEL_UP",
+}
 
 local function Build()
     window = UI.CreateWindow(WINDOW_NAME, WIDTH, HEIGHT, ICON)
@@ -301,6 +421,24 @@ local function Build()
     info.objective = info:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
     info.objective:SetWidth(INFO_WIDTH)
     info.objective:SetJustifyH("LEFT")
+    info.rewardHeader = info:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+    info.rewardHeader:SetJustifyH("LEFT")
+    UI.Localize(info.rewardHeader, "QUESTCHAIN_REWARDS")
+    info.rewardSummary = info:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+    info.rewardSummary:SetWidth(INFO_WIDTH)
+    info.rewardSummary:SetJustifyH("LEFT")
+    info.rewardStatus = info:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
+    info.rewardStatus:SetWidth(INFO_WIDTH)
+    info.rewardStatus:SetJustifyH("LEFT")
+    info.rewardRows, info.rewardLabels, info.rewardItemIDs = {}, {}, {}
+    for _, group in ipairs(REWARD_GROUPS) do
+        if group.title then
+            local label = info:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
+            label:SetJustifyH("LEFT")
+            UI.Localize(label, group.title)
+            info.rewardLabels[group.key] = label
+        end
+    end
     info.start = CreateGiver(info, "QUESTCHAIN_STARTS_AT")
     info.finish = CreateGiver(info, "QUESTCHAIN_TURN_IN")
 end
@@ -375,3 +513,7 @@ end
 function Panel.Hide()
     if window then window:Hide() end
 end
+
+ns:On("QUEST_CHAIN_REWARDS_UPDATED", function(questID)
+    if Panel.IsOpen() and (not questID or questID == selectedID) then OnQuestEvent() end
+end)

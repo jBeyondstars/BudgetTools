@@ -1,5 +1,6 @@
 local _, ns = ...
 local L, UI = ns.L, ns.UI
+local Util = ns.Util
 
 --[[
 Quest chains in the quest log.
@@ -8,7 +9,7 @@ A quest that belongs to a chain gets:
   - its step ("5/13") at the right of its line in the quest list. Clicking
     it opens the chain window;
   - the whole chain at the bottom of the tooltip of that line;
-  - a "Chain 5/13" button beside the quest's details, which opens the
+  - a "Chain 5/13" button in the quest's details, which opens the
     chain window too.
 The chain window (UI\QuestChainUI.lua) lists the chain. Clicking a quest
 there shows its objective, who gives it and who takes it, with a button
@@ -36,8 +37,8 @@ How it shows up without touching Blizzard's code:
   - The step is our own button on the quest's line. The title's right edge
     is moved to it so they never overlap; a title that wraps because of it
     makes its line taller, as the game does for "(Elite)".
-  - The button beside the details is our own, outside the details' frame:
-    nothing is added to the quest's text or to its scroll area.
+  - The details button stays in the header, above the scrolling quest text,
+    both on the map and in the standalone quest log details.
   - The tooltip lines are added from the event Blizzard's code sends once
     the tooltip of a quest line is built.
 ]]
@@ -513,6 +514,179 @@ end
 
 local GIVER_KINDS = { "npc", "object" }
 
+local function Read(get, ...)
+    if type(get) ~= "function" then return end
+    local ok, value = pcall(get, ...)
+    if ok and Util.Readable(value) then return value end
+end
+
+local function Number(value)
+    if Util.Readable(value) and type(value) == "number" then return value end
+end
+
+local function Name(value)
+    if Util.Readable(value) and type(value) == "string" and value ~= "" then return value end
+end
+
+local function RewardItem(id, name, icon, count, quality)
+    local getInfo = C_Item and C_Item.GetItemInfo or GetItemInfo
+    if id and (not name or not icon or not quality) and getInfo then
+        local ok, itemName, _, itemQuality, _, _, _, _, _, _, itemIcon = pcall(getInfo, id)
+        if ok then
+            name, icon, quality = name or Name(itemName), icon or Number(itemIcon), quality or Number(itemQuality)
+        end
+    end
+    if id and not icon and C_Item then icon = Number(Read(C_Item.GetItemIconByID, id)) end
+    return {
+        itemID = id,
+        name = name or (ItemDB and Name(Read(ItemDB.name, id))) or ("#" .. id),
+        icon = icon, count = count, quality = quality,
+    }
+end
+
+local function RewardItems(questID, getCount, getItem)
+    local items = {}
+    local count = Number(Read(getCount, questID))
+    if count and type(getItem) == "function" then
+        for index = 1, count do
+            local ok, name, icon, quantity, quality, _, id = pcall(getItem, index, questID)
+            if ok then
+                id, name = Number(id), Name(name)
+                if id and id <= 0 then id = nil end
+                if id or name then
+                    items[#items + 1] = RewardItem(id, name, Number(icon), Number(quantity), Number(quality))
+                end
+            end
+        end
+    end
+    return items, count == #items
+end
+
+-- QuestieDB links items back to their source quests. Build the reverse lookup
+-- on first use, in batches. These links give neither quantities nor choices.
+local knownRewardItems, loadingRewardItems
+local function IndexRewardItems()
+    if knownRewardItems or loadingRewardItems or not ItemDB then return end
+    local db = ItemDB
+    local itemIDs = Read(db.GetAllIds)
+    if not Util.ReadableTable(itemIDs) or type(db.questRewards) ~= "function" then return end
+
+    loadingRewardItems = true
+    local cursor, byQuest = 1, {}
+    local function Batch()
+        local start = debugprofilestop()
+        while cursor <= #itemIDs do
+            local itemID = itemIDs[cursor]
+            local questIDs = Read(db.questRewards, itemID)
+            if Util.ReadableTable(questIDs) then
+                for _, questID in ipairs(questIDs) do
+                    local items = byQuest[questID] or {}
+                    byQuest[questID] = items
+                    items[#items + 1] = itemID
+                end
+            end
+            cursor = cursor + 1
+            if debugprofilestop() - start >= BUDGET then
+                C_Timer.After(0, Batch)
+                return
+            end
+        end
+        knownRewardItems, loadingRewardItems = byQuest, false
+        ns:Fire("QUEST_CHAIN_REWARDS_UPDATED")
+    end
+    C_Timer.After(0, Batch)
+end
+
+-- A quest query and the preload of its reward items can finish separately.
+local rewardRequests = {}
+local function RequestRewards(questID)
+    local loadQuest = C_QuestLog.RequestLoadQuestByID
+    local preload = C_TaskQuest and C_TaskQuest.RequestPreloadRewardData
+    if not loadQuest and not preload then return false end
+    local now = GetTime()
+    local last = rewardRequests[questID]
+    if last and now - last < 30 then return now - last < 2 end
+    rewardRequests[questID] = now
+    if loadQuest then pcall(loadQuest, questID) end
+    if preload then pcall(preload, questID) end
+    C_Timer.After(0.3, function() ns:Fire("QUEST_CHAIN_REWARDS_UPDATED", questID) end)
+    C_Timer.After(2, function() ns:Fire("QUEST_CHAIN_REWARDS_UPDATED", questID) end)
+    return true
+end
+
+local function OtherRewards(questID)
+    local rewards = {}
+    local api = C_QuestInfoSystem or {}
+    local currencies = Read(api.GetQuestRewardCurrencies, questID)
+    if Util.ReadableTable(currencies) then
+        for _, currency in ipairs(currencies) do
+            if Util.ReadableTable(currency) and Name(currency.name) then
+                rewards[#rewards + 1] = {
+                    name = currency.name, icon = Number(currency.texture),
+                    count = Number(currency.totalRewardAmount), currencyID = Number(currency.currencyID),
+                    quality = Number(currency.quality),
+                }
+            end
+        end
+    end
+    local spellIDs = Read(api.GetQuestRewardSpells, questID)
+    if Util.ReadableTable(spellIDs) then
+        for _, id in ipairs(spellIDs) do
+            local spell = Read(api.GetQuestRewardSpellInfo, questID, id)
+            if Util.ReadableTable(spell) and Name(spell.name) then
+                rewards[#rewards + 1] = { name = spell.name, icon = Number(spell.texture), spellID = id }
+            end
+        end
+    end
+    local reputations = Field("reputationReward", questID)
+    if type(reputations) == "table" then
+        for _, reputation in ipairs(reputations) do
+            local id, amount = reputation[1], reputation[2]
+            if type(id) == "number" and type(amount) == "number" and amount ~= 0 then
+                local faction = C_Reputation and Read(C_Reputation.GetFactionDataByID, id)
+                local name = Util.ReadableTable(faction) and Name(faction.name) or Name(Read(GetFactionInfoByID, id))
+                rewards[#rewards + 1] = {
+                    name = L.QUESTCHAIN_REWARD_REPUTATION:format(amount, name or ("#" .. id)),
+                }
+            end
+        end
+    end
+    return rewards
+end
+
+local function Rewards(questID)
+    local inLog = Info(questID).inLog
+    local loaded = Read(HaveQuestRewardData, questID)
+    if loaded == nil and inLog then loaded = Read(HaveQuestData, questID) end
+    local items, itemsReady = RewardItems(questID, GetNumQuestLogRewards, GetQuestLogRewardInfo)
+    local choices, choicesReady = RewardItems(questID, GetNumQuestLogChoices, GetQuestLogChoiceInfo)
+    local known = itemsReady and choicesReady and (loaded == true or #items + #choices > 0)
+    local pending = not known and RequestRewards(questID)
+    local xp = Number(Read(GetQuestLogRewardXP, questID))
+    local referenceXP
+    if not xp or (xp == 0 and not (inLog and loaded)) then
+        xp = nil
+        local support = LibQuestieDB and LibQuestieDB.Support
+        local module = support and Read(support.Get, "QuestXP")
+        local base = module and module.db and module.db[questID]
+        referenceXP = base and type(base[2]) == "number" and base[2] >= 0 and base[2] or nil
+    end
+
+    local fallback = {}
+    if not known and #items == 0 and #choices == 0 then
+        IndexRewardItems()
+        for _, id in ipairs(knownRewardItems and knownRewardItems[questID] or NONE) do
+            fallback[#fallback + 1] = RewardItem(id)
+        end
+        pending = pending or loadingRewardItems
+    end
+    return {
+        xp = xp, referenceXP = referenceXP, money = Number(Read(GetQuestLogRewardMoney, questID)),
+        items = items, choices = choices, fallback = fallback, other = OtherRewards(questID),
+        pending = pending, known = known,
+    }
+end
+
 -- Who gives (field "startedBy") or takes ("finishedBy") a quest:
 --   { name, where, hit }  an NPC or a world object the finder can show
 --   { name, item }        an item that starts the quest
@@ -546,7 +720,7 @@ local function Giver(questID, field)
     end
 end
 
--- { id, name, level, minLevel, state, objective, start, finish }
+-- { id, name, level, minLevel, state, objective, start, finish, rewards }
 function Chain.QuestInfo(questID)
     if type(questID) ~= "number" then return nil end
     local name = Info(questID).name
@@ -564,6 +738,7 @@ function Chain.QuestInfo(questID)
         objective = objective,
         start = Giver(questID, "startedBy"),
         finish = Giver(questID, "finishedBy"),
+        rewards = Rewards(questID),
     }
 end
 
@@ -710,23 +885,27 @@ local function UpdateBadges()
 end
 
 ---------------------------------------------------------------------------
--- Button beside the quest's details
+-- Button in the quest's details
 ---------------------------------------------------------------------------
 
-local opener
+local openers = {}
 
 local function DetailsFrame()
     return QuestMapFrame and QuestMapFrame.DetailsFrame
 end
 
 local function NewOpener(details)
-    local button = CreateFrame("Button", nil, details, "UIPanelButtonTemplate")
+    local bar = details.BackFrame
+    local button = CreateFrame("Button", nil, bar or details, "UIPanelButtonTemplate")
     button:SetHeight(22)
-    -- Outside the details, on the map's edge: their top row is where other
-    -- addons put their own buttons.
-    button:SetPoint("TOPRIGHT", details, "TOPLEFT", -2, -46)
-    -- Over the map's icons, which share the details' strata.
-    button:SetFrameLevel(math.min(details:GetFrameLevel() + 9500, 9990))
+    if details == QuestLogPopupDetailFrame then
+        -- Between the book icon and the Show Map button.
+        button:SetPoint("TOPLEFT", details, "TOPLEFT", 66, -32)
+    elseif bar and bar.BackButton then
+        button:SetPoint("LEFT", bar.BackButton, "RIGHT", 8, 0)
+    else
+        button:SetPoint("TOPLEFT", details, "TOPLEFT", 109, -15)
+    end
     button:SetScript("OnClick", OpenFromButton)
     button:SetScript("OnEnter", StepTooltip)
     button:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -735,15 +914,17 @@ end
 
 -- Shows the button for the quest whose details are up; the chain window,
 -- when it is open, follows to that quest's chain.
-local function UpdateOpener()
-    local details = DetailsFrame()
-    if not details then return end
+local function UpdateOpener(details)
+    local opener = openers[details]
     local chain = active and Chain.Get(details.questID)
     if not chain then
         if opener then opener:Hide() end
         return
     end
-    opener = opener or NewOpener(details)
+    if not opener then
+        opener = NewOpener(details)
+        openers[details] = opener
+    end
     SetStep(opener, chain)
     opener:SetText(L.QUESTCHAIN_BUTTON:format(chain.step, chain.steps))
     local label = opener:GetFontString()
@@ -757,27 +938,43 @@ end
 -- Hooks
 ---------------------------------------------------------------------------
 
-local hooked = false
+local logHooked, detailsHooked, popupHooked
+local hookLoader = CreateFrame("Frame")
+
+local function OnDetailsUpdated(details)
+    if not active then return end
+    Chain.Reset()
+    Safe(UpdateOpener, details)
+end
 
 local function InstallHooks()
-    if hooked then return end
-    hooked = true
-    if type(QuestLogQuests_Update) == "function" then
+    local popup = QuestLogPopupDetailFrame
+    if not logHooked and type(QuestLogQuests_Update) == "function" then
+        logHooked = true
         hooksecurefunc("QuestLogQuests_Update", function()
             Chain.Reset()
             Safe(UpdateBadges)
         end)
+        if EventRegistry and EventRegistry.RegisterCallback then
+            EventRegistry:RegisterCallback("QuestMapLogTitleButton.OnEnter", function(...)
+                Safe(OnTitleEnter, ...)
+            end, Chain)
+        end
     end
-    if type(QuestMapFrame_ShowQuestDetails) == "function" then
+    if not detailsHooked and type(QuestMapFrame_ShowQuestDetails) == "function" and DetailsFrame() then
+        detailsHooked = true
         hooksecurefunc("QuestMapFrame_ShowQuestDetails", function()
-            Chain.Reset()
-            Safe(UpdateOpener)
+            OnDetailsUpdated(DetailsFrame())
         end)
     end
-    if EventRegistry and EventRegistry.RegisterCallback then
-        EventRegistry:RegisterCallback("QuestMapLogTitleButton.OnEnter", function(...)
-            Safe(OnTitleEnter, ...)
-        end, Chain)
+    if not popupHooked and popup and type(popup.Update) == "function" then
+        popupHooked = true
+        hooksecurefunc(popup, "Update", OnDetailsUpdated)
+    end
+    if logHooked and detailsHooked and popupHooked then
+        hookLoader:UnregisterEvent("ADDON_LOADED")
+    else
+        hookLoader:RegisterEvent("ADDON_LOADED")
     end
 end
 
@@ -785,17 +982,22 @@ end
 local function Refresh()
     Chain.Reset()
     if QuestScrollFrame and QuestScrollFrame:IsVisible() then Safe(UpdateBadges) end
-    local details = DetailsFrame()
-    if details and details:IsVisible() then
-        Safe(UpdateOpener)
-    elseif opener then
-        opener:Hide()
+    if active then
+        local details, popup = DetailsFrame(), QuestLogPopupDetailFrame
+        if details and details:IsVisible() then Safe(UpdateOpener, details) end
+        if popup and popup:IsVisible() then Safe(UpdateOpener, popup) end
+    else
+        for _, opener in pairs(openers) do opener:Hide() end
     end
     local window = ns.QuestChainUI
     if window then
         if active then window.Refresh() else window.Hide() end
     end
 end
+
+hookLoader:SetScript("OnEvent", function()
+    InstallHooks()
+end)
 
 OnIndexReady = function()
     if active then Refresh() end
@@ -830,6 +1032,7 @@ ns:RegisterFeature({
     OnDisable = function()
         -- Hooks can't be removed; they stay and do nothing.
         active = false
+        hookLoader:UnregisterEvent("ADDON_LOADED")
         Refresh()
     end,
 })

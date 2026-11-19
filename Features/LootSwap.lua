@@ -364,18 +364,7 @@ end
 -- Text helpers
 ---------------------------------------------------------------------------
 
-local function Money(copper)
-    copper = math.floor(copper or 0)
-    local ok, text = Call(GetMoneyString, copper, true)
-    if not (ok and type(text) == "string" and text ~= "") then
-        ok, text = Call(GetCoinTextureString, copper)
-    end
-    if ok and type(text) == "string" and text ~= "" then return text end
-    local gold, silver, rest = math.floor(copper / 10000), math.floor(copper / 100) % 100, copper % 100
-    if gold > 0 then return ("%dg %ds %dc"):format(gold, silver, rest) end
-    if silver > 0 then return ("%ds %dc"):format(silver, rest) end
-    return ("%dc"):format(rest)
-end
+local Money = Util.FormatMoney
 Swap.Money = Money
 
 local function QualityColor(quality)
